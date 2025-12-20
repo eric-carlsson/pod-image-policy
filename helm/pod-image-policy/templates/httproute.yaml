@@ -1,12 +1,12 @@
 {{- if .Values.httpRoute.enabled -}}
-{{- $fullName := include "pod-image-admission.fullname" . -}}
+{{- $fullName := include "pod-image-policy.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: {{ $fullName }}
   labels:
-    {{- include "pod-image-admission.labels" . | nindent 4 }}
+    {{- include "pod-image-policy.labels" . | nindent 4 }}
   {{- with .Values.httpRoute.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

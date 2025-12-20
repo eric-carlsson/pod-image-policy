@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: { { include "pod-image-policy.fullname" . } }
+  labels: { { - include "pod-image-policy.labels" . | nindent 4 } }
+spec:
+  type: { { .Values.service.type } }
+  ports:
+    - port: { { .Values.service.port } }
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector: { { - include "pod-image-policy.selectorLabels" . | nindent 4 } }

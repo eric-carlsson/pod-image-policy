@@ -1,4 +1,4 @@
-module github.com/eric-carlsson/pod-image-admissiob
+module github.com/eric-carlsson/pod-image-policy
 
 go 1.25.4
 

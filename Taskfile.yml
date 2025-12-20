@@ -6,10 +6,10 @@ vars:
   # IMAGE_HASH is used to generate a unique tag for images.
   IMAGE_HASH:
     sh: cat $(find . -name '*.go' -type f) go.mod Dockerfile | shasum | awk '{print substr($1,1,8)}'
-  IMAGE_NAME: pod-image-admission
+  IMAGE_NAME: pod-image-policy
   KIND_CLUSTER:
     map:
-      name: pod-image-admission
+      name: pod-image-policy
       cert_manager_version: v1.19.2
 
 env:
@@ -73,7 +73,7 @@ tasks:
     deps:
       - ensure-cluster
     status:
-      - kubectl get secret pod-image-admission-tls --namespace pod-image-admission
+      - kubectl get secret pod-image-policy-tls --namespace pod-image-policy
     cmds:
       - mkdir -p /tmp/{{ .IMAGE_NAME }}-certs
       - >-
@@ -81,14 +81,14 @@ tasks:
         -keyout /tmp/{{ .IMAGE_NAME }}-certs/tls.key
         -out /tmp/{{ .IMAGE_NAME }}-certs/tls.crt
         -days 365
-        -subj "/CN=pod-image-admission.pod-image-admission.svc"
-        -addext "subjectAltName=DNS:pod-image-admission.pod-image-admission.svc,DNS:pod-image-admission.pod-image-admission.svc.cluster.local"
-      - kubectl create namespace pod-image-admission --dry-run=client -o yaml | kubectl apply -f -
+        -subj "/CN=pod-image-policy.pod-image-policy.svc"
+        -addext "subjectAltName=DNS:pod-image-policy.pod-image-policy.svc,DNS:pod-image-policy.pod-image-policy.svc.cluster.local"
+      - kubectl create namespace pod-image-policy --dry-run=client -o yaml | kubectl apply -f -
       - >-
-        kubectl create secret tls pod-image-admission-tls
+        kubectl create secret tls pod-image-policy-tls
         --cert=/tmp/{{ .IMAGE_NAME }}-certs/tls.crt
         --key=/tmp/{{ .IMAGE_NAME }}-certs/tls.key
-        --namespace pod-image-admission
+        --namespace pod-image-policy
         --dry-run=client -o yaml | kubectl apply -f -
 
   deploy-chart:
@@ -100,9 +100,9 @@ tasks:
       - load-image
       - create-tls-secret
     cmd: >-
-      helm upgrade pod-image-admission ./helm/pod-image-admission
+      helm upgrade pod-image-policy ./helm/pod-image-policy
       --install
-      --namespace pod-image-admission
+      --namespace pod-image-policy
       --create-namespace
       --set image.repository=localhost/{{ .IMAGE_NAME }}
       --set image.tag={{ .IMAGE_HASH }}
@@ -110,7 +110,7 @@ tasks:
       --set service.port=9443
       --set webhook.mutating.caBundle=$(cat /tmp/{{ .IMAGE_NAME }}-certs/tls.crt | base64 | tr -d '\n')
       --set-json 'args=["-certFile=/certs/tls.crt","-keyFile=/certs/tls.key","-addr=:9443"]'
-      --set-json 'volumes=[{"name":"certs","secret":{"secretName":"pod-image-admission-tls"}}]'
+      --set-json 'volumes=[{"name":"certs","secret":{"secretName":"pod-image-policy-tls"}}]'
       --set-json 'volumeMounts=[{"name":"certs","mountPath":"/certs","readOnly":true}]'
 
   build:

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/eric-carlsson/pod-image-admissiob/pkg/config"
+	"github.com/eric-carlsson/pod-image-policy/pkg/config"
 
 	corev1 "k8s.io/api/core/v1"
 )

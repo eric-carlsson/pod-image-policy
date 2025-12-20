@@ -13,12 +13,12 @@ COPY . .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
 	--mount=type=cache,target=/root/.cache/go-build \
-	CGO_ENABLED=0 go build -o /pod-image-admission .
+	CGO_ENABLED=0 go build -o /pod-image-policy .
 
 FROM scratch
 
-COPY --from=build /pod-image-admission /pod-image-admission
+COPY --from=build /pod-image-policy /pod-image-policy
 
 EXPOSE 9443
 
-ENTRYPOINT ["/pod-image-admission"]
+ENTRYPOINT ["/pod-image-policy"]

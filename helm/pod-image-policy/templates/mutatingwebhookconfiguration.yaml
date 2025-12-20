@@ -2,11 +2,11 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: {{ include "pod-image-admission.fullname" . }}-mutating
+  name: {{ include "pod-image-policy.fullname" . }}-mutating
   labels:
-    {{- include "pod-image-admission.labels" . | nindent 4 }}
+    {{- include "pod-image-policy.labels" . | nindent 4 }}
 webhooks:
-  - name: {{ include "pod-image-admission.fullname" . }}.{{ .Release.Namespace }}.svc
+  - name: {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
     admissionReviewVersions: {{ toYaml .Values.webhook.mutating.admissionReviewVersions | nindent 4 }}
     sideEffects: {{ .Values.webhook.mutating.sideEffects }}
     timeoutSeconds: {{ .Values.webhook.mutating.timeoutSeconds }}
@@ -24,7 +24,7 @@ webhooks:
       {{- toYaml .Values.webhook.mutating.rules | nindent 6 }}
     clientConfig:
       service:
-        name: {{ include "pod-image-admission.fullname" . }}
+        name: {{ include "pod-image-policy.fullname" . }}
         namespace: {{ .Release.Namespace }}
         path: {{ .Values.webhook.mutating.path }}
         {{- if .Values.webhook.mutating.port }}

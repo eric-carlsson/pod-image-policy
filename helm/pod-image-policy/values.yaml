@@ -1,4 +1,4 @@
-# Default values for pod-image-admission.
+# Default values for pod-image-policy.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -7,7 +7,7 @@ replicaCount: 1
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
-  repository: ghcr.io/eric-carlsson/pod-image-admission
+  repository: ghcr.io/eric-carlsson/pod-image-policy
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
@@ -41,7 +41,7 @@ podAnnotations: {}
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 # Default label opts the webhook pod (and any pod with this label) out of mutation via the webhook's objectSelector.
 podLabels:
-  pod-image-admission.io/ignore-mutation: "true"
+  pod-image-policy.io/ignore-mutation: "true"
 
 podSecurityContext:
   {}
@@ -91,7 +91,7 @@ webhook:
     # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
     objectSelector:
       matchExpressions:
-        - key: pod-image-admission.io/ignore-mutation
+        - key: pod-image-policy.io/ignore-mutation
           operator: DoesNotExist
 
     # Optional namespaceSelector to include/exclude namespaces

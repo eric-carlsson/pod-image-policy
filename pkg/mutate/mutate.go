@@ -3,9 +3,9 @@ package mutate
 import (
 	"fmt"
 
-	"github.com/eric-carlsson/pod-image-admissiob/pkg/config"
-	"github.com/eric-carlsson/pod-image-admissiob/pkg/image"
-	"github.com/eric-carlsson/pod-image-admissiob/pkg/rules"
+	"github.com/eric-carlsson/pod-image-policy/pkg/config"
+	"github.com/eric-carlsson/pod-image-policy/pkg/image"
+	"github.com/eric-carlsson/pod-image-policy/pkg/rules"
 
 	corev1 "k8s.io/api/core/v1"
 )

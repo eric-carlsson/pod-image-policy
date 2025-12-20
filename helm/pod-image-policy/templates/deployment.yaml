@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "pod-image-admission.fullname" . }}
+  name: {{ include "pod-image-policy.fullname" . }}
   labels:
-    {{- include "pod-image-admission.labels" . | nindent 4 }}
+    {{- include "pod-image-policy.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "pod-image-admission.selectorLabels" . | nindent 6 }}
+      {{- include "pod-image-policy.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "pod-image-admission.labels" . | nindent 8 }}
+        {{- include "pod-image-policy.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -27,7 +27,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "pod-image-admission.serviceAccountName" . }}
+      serviceAccountName: {{ include "pod-image-policy.serviceAccountName" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -81,7 +81,7 @@ spec:
         {{- if .Values.config }}
         - name: config
           configMap:
-            name: {{ include "pod-image-admission.fullname" . }}-config
+            name: {{ include "pod-image-policy.fullname" . }}-config
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
