@@ -11,10 +11,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/eric-carlsson/pod-image-admissiob/internal/config"
 	"github.com/eric-carlsson/pod-image-admissiob/internal/mutate"
+	"github.com/fsnotify/fsnotify"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -55,15 +59,13 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 
 	log := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug}))
 
-	admissionConfig, err := config.Load(srvCfg.configFile)
+	mutator, err := loadMutator(log, srvCfg.configFile)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	log.Info("admission config loaded",
-		"path", srvCfg.configFile,
-		"mutateRules", len(admissionConfig.Mutate.Rules),
-		"validateRules", len(admissionConfig.Validate.Rules),
-	)
+
+	var mutatorPtr atomic.Pointer[mutate.Mutator]
+	mutatorPtr.Store(mutator)
 
 	mux := http.NewServeMux()
 
@@ -77,7 +79,7 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 		w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/mutate", mutateHandler(log, admissionConfig))
+	mux.HandleFunc("/mutate", mutateHandler(log, &mutatorPtr))
 
 	srv := http.Server{
 		Addr:     srvCfg.Addr,
@@ -87,6 +89,12 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
+
+	if srvCfg.configFile != "" {
+		go watchConfig(ctx, log, srvCfg.configFile, func(newMutator *mutate.Mutator) {
+			mutatorPtr.Store(newMutator)
+		})
+	}
 
 	shutdownErr := make(chan error)
 
@@ -113,6 +121,26 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 	return nil
 }
 
+func loadMutator(log *slog.Logger, path string) (*mutate.Mutator, error) {
+	admissionConfig, err := config.Load(path)
+	if err != nil {
+		return nil, err
+	}
+
+	mutator, err := mutate.NewMutator(admissionConfig.Mutate)
+	if err != nil {
+		return nil, fmt.Errorf("compile mutate rules: %w", err)
+	}
+
+	log.Info("admission config (re)loaded",
+		"path", path,
+		"mutateRules", len(admissionConfig.Mutate.Rules),
+		"validateRules", len(admissionConfig.Validate.Rules),
+	)
+
+	return mutator, nil
+}
+
 func encode[T any](w http.ResponseWriter, status int, v T) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -133,24 +161,18 @@ func decode[T any](r *http.Request) (T, error) {
 	return v, nil
 }
 
-func mutateHandler(log *slog.Logger, cfg *config.AdmissionConfig) http.HandlerFunc {
-	if cfg == nil {
-		cfg = &config.AdmissionConfig{}
-	}
-	config.Default(cfg)
-
-	mutator, err := mutate.NewMutator(cfg.Mutate)
-	if err != nil {
-		// Fail fast on startup misconfiguration
-		panic(fmt.Sprintf("compile mutate rules: %v", err))
-	}
-
+func mutateHandler(log *slog.Logger, mutatorPtr *atomic.Pointer[mutate.Mutator]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		review, err := decode[admissionv1.AdmissionReview](r)
 		if err != nil {
 			log.Error("failed to decode admission review", "err", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+
+		mutator := mutatorPtr.Load()
+		if mutator == nil {
+			mutator = &mutate.Mutator{}
 		}
 
 		resp, err := handleMutation(&review, log, mutator)
@@ -172,6 +194,76 @@ func mutateHandler(log *slog.Logger, cfg *config.AdmissionConfig) http.HandlerFu
 			log.Error("failed to encode admission response", "err", err)
 		}
 	}
+}
+
+func watchConfig(ctx context.Context, log *slog.Logger, path string, onReload func(*mutate.Mutator)) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Error("config watcher start failed", "err", err)
+		return
+	}
+	defer watcher.Close()
+
+	var lastReload atomic.Int64
+
+	dir := filepath.Dir(path)
+	watchTargets := []string{dir, filepath.Join(dir, "..data")}
+	for _, target := range watchTargets {
+		if err := watcher.Add(target); err != nil {
+			log.Error("config watcher add failed", "path", target, "err", err)
+		}
+	}
+
+	log.Info("config reload watcher enabled", "file", path)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case evt := <-watcher.Events:
+			if !shouldReload(evt, path) {
+				continue
+			}
+
+			now := time.Now().UnixNano()
+			prev := lastReload.Load()
+			// Add debounce to prevent repeated reloads during single update
+			if prev != 0 && time.Duration(now-prev) < 200*time.Millisecond {
+				continue
+			}
+			lastReload.Store(now)
+
+			newMutator, err := loadMutator(log, path)
+			if err != nil {
+				log.Error("config reload failed", "err", err)
+				continue
+			}
+
+			onReload(newMutator)
+		case err := <-watcher.Errors:
+			log.Error("config watcher error", "err", err)
+		}
+	}
+}
+
+func shouldReload(evt fsnotify.Event, cfgPath string) bool {
+	if evt.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove|fsnotify.Chmod) == 0 {
+		return false
+	}
+
+	cleanCfg := filepath.Clean(cfgPath)
+	cleanEvt := filepath.Clean(evt.Name)
+
+	if cleanEvt == cleanCfg {
+		return true
+	}
+
+	// ConfigMap volumes update ..data symlink and its contents
+	if strings.Contains(cleanEvt, string(filepath.Separator)+"..data") {
+		return true
+	}
+
+	return false
 }
 
 // handleMutation performs the admission logic and returns an AdmissionResponse.
