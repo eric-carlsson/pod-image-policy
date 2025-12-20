@@ -1,0 +1,11 @@
+{{- if .Values.config }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pod-image-admission.fullname" . }}-config
+  labels:
+    {{- include "pod-image-admission.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+{{ toYaml .Values.config | indent 4 }}
+{{- end }}

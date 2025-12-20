@@ -13,14 +13,19 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/eric-carlsson/pod-image-admissiob/internal/config"
+	"github.com/eric-carlsson/pod-image-admissiob/internal/mutate"
+
 	admissionv1 "k8s.io/api/admission/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type Config struct {
-	Addr     string
-	certFile string
-	keyFile  string
+type ServerConfig struct {
+	Addr       string
+	certFile   string
+	keyFile    string
+	configFile string
 }
 
 func main() {
@@ -36,18 +41,29 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 		return errors.New("no arguments provided")
 	}
 
-	var config Config
+	var srvCfg ServerConfig
 	fs := flag.NewFlagSet(args[0], flag.ExitOnError)
-	fs.StringVar(&config.Addr, "addr", ":9443", "Server address")
-	fs.StringVar(&config.certFile, "certFile", "", "Path to TLS certificate file")
-	fs.StringVar(&config.keyFile, "keyFile", "", "Path to TLS key file")
+	fs.StringVar(&srvCfg.Addr, "addr", ":9443", "Server address")
+	fs.StringVar(&srvCfg.certFile, "certFile", "", "Path to TLS certificate file")
+	fs.StringVar(&srvCfg.keyFile, "keyFile", "", "Path to TLS key file")
+	fs.StringVar(&srvCfg.configFile, "configFile", "", "Path to admission config file")
 	fs.Parse(args[1:])
 
-	if config.certFile == "" || config.keyFile == "" {
+	if srvCfg.certFile == "" || srvCfg.keyFile == "" {
 		return errors.New("certFile and keyFile options must be specified")
 	}
 
 	log := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug}))
+
+	admissionConfig, err := config.Load(srvCfg.configFile)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	log.Info("admission config loaded",
+		"path", srvCfg.configFile,
+		"mutateRules", len(admissionConfig.Mutate.Rules),
+		"validateRules", len(admissionConfig.Validate.Rules),
+	)
 
 	mux := http.NewServeMux()
 
@@ -61,10 +77,10 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 		w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/mutate", mutateHandler(log))
+	mux.HandleFunc("/mutate", mutateHandler(log, admissionConfig))
 
 	srv := http.Server{
-		Addr:     config.Addr,
+		Addr:     srvCfg.Addr,
 		Handler:  mux,
 		ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelError),
 	}
@@ -84,9 +100,9 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 		shutdownErr <- srv.Shutdown(ctx)
 	}()
 
-	log.Info("starting server", "addr", config.Addr)
+	log.Info("starting server", "addr", srvCfg.Addr)
 
-	if err := srv.ListenAndServeTLS(config.certFile, config.keyFile); err != http.ErrServerClosed {
+	if err := srv.ListenAndServeTLS(srvCfg.certFile, srvCfg.keyFile); err != http.ErrServerClosed {
 		return fmt.Errorf("listen and serve: %w", err)
 	}
 
@@ -117,7 +133,18 @@ func decode[T any](r *http.Request) (T, error) {
 	return v, nil
 }
 
-func mutateHandler(log *slog.Logger) http.HandlerFunc {
+func mutateHandler(log *slog.Logger, cfg *config.AdmissionConfig) http.HandlerFunc {
+	if cfg == nil {
+		cfg = &config.AdmissionConfig{}
+	}
+	config.Default(cfg)
+
+	mutator, err := mutate.NewMutator(cfg.Mutate)
+	if err != nil {
+		// Fail fast on startup misconfiguration
+		panic(fmt.Sprintf("compile mutate rules: %v", err))
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		review, err := decode[admissionv1.AdmissionReview](r)
 		if err != nil {
@@ -126,7 +153,7 @@ func mutateHandler(log *slog.Logger) http.HandlerFunc {
 			return
 		}
 
-		resp, err := handleMutation(&review, log)
+		resp, err := handleMutation(&review, log, mutator)
 		if err != nil {
 			log.Error("failed to handle mutation", "err", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -148,7 +175,7 @@ func mutateHandler(log *slog.Logger) http.HandlerFunc {
 }
 
 // handleMutation performs the admission logic and returns an AdmissionResponse.
-func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger) (*admissionv1.AdmissionResponse, error) {
+func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger, mutator *mutate.Mutator) (*admissionv1.AdmissionResponse, error) {
 	if review.Request == nil {
 		return nil, errors.New("admission review request is nil")
 	}
@@ -161,9 +188,30 @@ func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger) (*adm
 		"name", review.Request.Name,
 	)
 
-	// TODO: add mutation logic and JSON patch construction here
-	return &admissionv1.AdmissionResponse{
+	var pod corev1.Pod
+	if err := json.Unmarshal(review.Request.Object.Raw, &pod); err != nil {
+		return nil, fmt.Errorf("decode pod: %w", err)
+	}
+
+	patches, err := mutator.RewritePodImages(&pod)
+	if err != nil {
+		return nil, fmt.Errorf("rewrite images: %w", err)
+	}
+
+	response := &admissionv1.AdmissionResponse{
 		UID:     review.Request.UID,
 		Allowed: true,
-	}, nil
+	}
+
+	if len(patches) > 0 {
+		patchBytes, err := json.Marshal(patches)
+		if err != nil {
+			return nil, fmt.Errorf("marshal patch: %w", err)
+		}
+		pt := admissionv1.PatchTypeJSONPatch
+		response.PatchType = &pt
+		response.Patch = patchBytes
+	}
+
+	return response, nil
 }
