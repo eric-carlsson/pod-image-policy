@@ -12,10 +12,14 @@ webhooks:
     timeoutSeconds: {{ .Values.webhook.mutating.timeoutSeconds }}
     failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
     matchPolicy: {{ .Values.webhook.mutating.matchPolicy }}
+    {{- with .Values.webhook.mutating.objectSelector }}
     objectSelector:
-      matchExpressions:
-        - key: {{ .Values.webhook.mutating.excludeLabel }}
-          operator: DoesNotExist
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.webhook.mutating.namespaceSelector }}
+    namespaceSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     rules:
       {{- toYaml .Values.webhook.mutating.rules | nindent 6 }}
     clientConfig:

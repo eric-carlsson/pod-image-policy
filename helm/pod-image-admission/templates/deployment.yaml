@@ -22,9 +22,6 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- if .Values.webhook.mutating.enabled }}
-        {{ .Values.webhook.mutating.excludeLabel }}: "true"
-        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

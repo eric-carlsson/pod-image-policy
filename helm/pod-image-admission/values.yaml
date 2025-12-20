@@ -42,7 +42,9 @@ serviceAccount:
 podAnnotations: {}
 # This is for setting Kubernetes Labels to a Pod.
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-podLabels: {}
+# Default label opts the webhook pod (and any pod with this label) out of mutation via the webhook's objectSelector.
+podLabels:
+  pod-image-admission.io/ignore-mutation: "true"
 
 podSecurityContext:
   {}
@@ -70,7 +72,7 @@ webhook:
     path: /mutate
     # Service port used by the webhook; defaults to the chart service.port
     port: ""
-    failurePolicy: Fail
+    failurePolicy: Ignore
     matchPolicy: Equivalent
     sideEffects: None
     timeoutSeconds: 5
@@ -89,8 +91,14 @@ webhook:
           - v1
         resources:
           - pods
-    # Label key used to exclude objects (e.g., the webhook's own pods) via objectSelector
-    excludeLabel: pod-image-admission.io/ignore-mutation
+    # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
+    objectSelector:
+      matchExpressions:
+        - key: pod-image-admission.io/ignore-mutation
+          operator: DoesNotExist
+
+    # Optional namespaceSelector to include/exclude namespaces
+    namespaceSelector: {}
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
