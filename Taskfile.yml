@@ -1,0 +1,128 @@
+# https://taskfile.dev
+
+version: "3"
+
+vars:
+  # IMAGE_HASH is used to generate a unique tag for images.
+  IMAGE_HASH:
+    sh: cat $(find . -name '*.go' -type f) go.mod Dockerfile | shasum | awk '{print substr($1,1,8)}'
+  IMAGE_NAME: pod-image-admission
+  KIND_CLUSTER:
+    map:
+      name: pod-image-admission
+      cert_manager_version: v1.19.2
+
+env:
+  DOCKER_COMMAND: docker
+
+tasks:
+  build-image:
+    desc: Build the application image
+    internal: true
+    status:
+      - test -n "$($DOCKER_COMMAND images -q {{ .IMAGE_NAME }}:{{ .IMAGE_HASH }})"
+    cmd: $DOCKER_COMMAND build -t {{ .IMAGE_NAME }}:{{ .IMAGE_HASH }} .
+
+  ensure-cluster:
+    desc: Ensure kind cluster exists and context is set
+    internal: true
+    run: once
+    cmd: |-
+      if kind get clusters | grep -q "{{ .KIND_CLUSTER.name }}"; then
+        kubectl config use-context "kind-{{ .KIND_CLUSTER.name }}"
+      else
+        kind create cluster -n "{{ .KIND_CLUSTER.name }}"
+      fi
+
+  delete-cluster:
+    desc: Delete kind cluster
+    internal: true
+    status:
+      - '! kind get clusters | grep -q "{{ .KIND_CLUSTER.name }}"'
+    cmd: kind delete cluster -n "{{ .KIND_CLUSTER.name }}"
+
+  ensure-cert-manager:
+    desc: Deploy cert-manager helm chart
+    internal: true
+    deps:
+      - ensure-cluster
+    status:
+      - helm status cert-manager --namespace cert-manager
+    cmd: >-
+      helm install cert-manager oci://quay.io/jetstack/charts/cert-manager
+      --version {{ .KIND_CLUSTER.cert_manager_version }}
+      --namespace cert-manager
+      --create-namespace
+      --set crds.enabled=true
+
+  load-image:
+    desc: Load image into kind cluster
+    internal: true
+    deps:
+      - ensure-cluster
+      - build-image
+    status:
+      - test -n "$($DOCKER_COMMAND exec kind-{{ .KIND_CLUSTER.name }}-control-plane crictl images -q {{ .IMAGE_NAME }}:{{ .IMAGE_HASH }})"
+    cmds:
+      - $DOCKER_COMMAND save {{ .IMAGE_NAME }}:{{ .IMAGE_HASH }} -o /tmp/{{ .IMAGE_NAME }}-{{ .IMAGE_HASH }}.tar
+      - kind load image-archive /tmp/{{ .IMAGE_NAME }}-{{ .IMAGE_HASH }}.tar --name {{ .KIND_CLUSTER.name }}
+
+  create-tls-secret:
+    desc: Create self-signed TLS certificate and Kubernetes secret
+    internal: true
+    deps:
+      - ensure-cluster
+    status:
+      - kubectl get secret pod-image-admission-tls --namespace pod-image-admission
+    cmds:
+      - mkdir -p /tmp/{{ .IMAGE_NAME }}-certs
+      - >-
+        openssl req -x509 -newkey rsa:4096 -nodes
+        -keyout /tmp/{{ .IMAGE_NAME }}-certs/tls.key
+        -out /tmp/{{ .IMAGE_NAME }}-certs/tls.crt
+        -days 365
+        -subj "/CN=pod-image-admission.pod-image-admission.svc"
+      - kubectl create namespace pod-image-admission --dry-run=client -o yaml | kubectl apply -f -
+      - >-
+        kubectl create secret tls pod-image-admission-tls
+        --cert=/tmp/{{ .IMAGE_NAME }}-certs/tls.crt
+        --key=/tmp/{{ .IMAGE_NAME }}-certs/tls.key
+        --namespace pod-image-admission
+        --dry-run=client -o yaml | kubectl apply -f -
+
+  deploy-chart:
+    desc: Deploy the Helm chart to the kind cluster
+    internal: true
+    deps:
+      - ensure-cluster
+      - ensure-cert-manager
+      - load-image
+      - create-tls-secret
+    cmd: >-
+      helm upgrade pod-image-admission ./helm/pod-image-admission
+      --install
+      --namespace pod-image-admission
+      --create-namespace
+      --set image.repository=localhost/{{ .IMAGE_NAME }}
+      --set image.tag={{ .IMAGE_HASH }}
+      --set image.pullPolicy=IfNotPresent
+      --set service.port=9443
+      --set-json 'args=["-certFile=/certs/tls.crt","-keyFile=/certs/tls.key","-addr=:9443"]'
+      --set-json 'volumes=[{"name":"certs","secret":{"secretName":"pod-image-admission-tls"}}]'
+      --set-json 'volumeMounts=[{"name":"certs","mountPath":"/certs","readOnly":true}]'
+
+  build:
+    desc: Build the application image
+    deps:
+      - build-image
+
+  run:
+    desc: Run the application locally
+    deps:
+      - build-image
+    cmd: $DOCKER_COMMAND run -v "$PWD":/certs -p 9443:9443 {{ .IMAGE_NAME }}:{{ .IMAGE_HASH }} -certFile=/certs/localhost.crt -keyFile=/certs/localhost.key
+
+  local-deploy:
+    desc: Deploy into local kind cluster
+    deps:
+      - deploy-chart
