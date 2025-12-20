@@ -1,0 +1,34 @@
+{{- if .Values.webhook.mutating.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "pod-image-admission.fullname" . }}-mutating
+  labels:
+    {{- include "pod-image-admission.labels" . | nindent 4 }}
+webhooks:
+  - name: {{ include "pod-image-admission.fullname" . }}.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: {{ toYaml .Values.webhook.mutating.admissionReviewVersions | nindent 4 }}
+    sideEffects: {{ .Values.webhook.mutating.sideEffects }}
+    timeoutSeconds: {{ .Values.webhook.mutating.timeoutSeconds }}
+    failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
+    matchPolicy: {{ .Values.webhook.mutating.matchPolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: {{ .Values.webhook.mutating.excludeLabel }}
+          operator: DoesNotExist
+    rules:
+      {{- toYaml .Values.webhook.mutating.rules | nindent 6 }}
+    clientConfig:
+      service:
+        name: {{ include "pod-image-admission.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: {{ .Values.webhook.mutating.path }}
+        {{- if .Values.webhook.mutating.port }}
+        port: {{ .Values.webhook.mutating.port }}
+        {{- else }}
+        port: {{ .Values.service.port }}
+        {{- end }}
+      {{- with .Values.webhook.mutating.caBundle }}
+      caBundle: {{ . }}
+      {{- end }}
+{{- end }}

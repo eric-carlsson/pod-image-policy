@@ -82,6 +82,7 @@ tasks:
         -out /tmp/{{ .IMAGE_NAME }}-certs/tls.crt
         -days 365
         -subj "/CN=pod-image-admission.pod-image-admission.svc"
+        -addext "subjectAltName=DNS:pod-image-admission.pod-image-admission.svc,DNS:pod-image-admission.pod-image-admission.svc.cluster.local"
       - kubectl create namespace pod-image-admission --dry-run=client -o yaml | kubectl apply -f -
       - >-
         kubectl create secret tls pod-image-admission-tls
@@ -107,6 +108,7 @@ tasks:
       --set image.tag={{ .IMAGE_HASH }}
       --set image.pullPolicy=IfNotPresent
       --set service.port=9443
+      --set webhook.mutating.caBundle=$(cat /tmp/{{ .IMAGE_NAME }}-certs/tls.crt | base64 | tr -d '\n')
       --set-json 'args=["-certFile=/certs/tls.crt","-keyFile=/certs/tls.key","-addr=:9443"]'
       --set-json 'volumes=[{"name":"certs","secret":{"secretName":"pod-image-admission-tls"}}]'
       --set-json 'volumeMounts=[{"name":"certs","mountPath":"/certs","readOnly":true}]'

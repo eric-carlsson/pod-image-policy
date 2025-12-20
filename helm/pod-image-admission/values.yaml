@@ -64,6 +64,34 @@ service:
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 80
 
+webhook:
+  mutating:
+    enabled: true
+    path: /mutate
+    # Service port used by the webhook; defaults to the chart service.port
+    port: ""
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    sideEffects: None
+    timeoutSeconds: 5
+    admissionReviewVersions:
+      - v1
+    # Base64-encoded CA bundle. Leave empty if injected by cert-manager cainjector.
+    caBundle: ""
+    # Rules the webhook applies to.
+    rules:
+      - operations:
+          - CREATE
+          - UPDATE
+        apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        resources:
+          - pods
+    # Label key used to exclude objects (e.g., the webhook's own pods) via objectSelector
+    excludeLabel: pod-image-admission.io/ignore-mutation
+
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
   enabled: false

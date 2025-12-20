@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,6 +12,9 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	admissionv1 "k8s.io/api/admission/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Config struct {
@@ -57,10 +61,7 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 		w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/mutate", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello world!\n"))
-		w.WriteHeader(200)
-	})
+	mux.HandleFunc("/mutate", mutateHandler(log))
 
 	srv := http.Server{
 		Addr:     config.Addr,
@@ -94,4 +95,75 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 	}
 
 	return nil
+}
+
+func encode[T any](w http.ResponseWriter, status int, v T) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		return fmt.Errorf("encode json: %w", err)
+	}
+	return nil
+}
+
+func decode[T any](r *http.Request) (T, error) {
+	var v T
+	if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+		return v, fmt.Errorf("unexpected content-type: %s", ct)
+	}
+	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+		return v, fmt.Errorf("decode json: %w", err)
+	}
+	return v, nil
+}
+
+func mutateHandler(log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		review, err := decode[admissionv1.AdmissionReview](r)
+		if err != nil {
+			log.Error("failed to decode admission review", "err", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		resp, err := handleMutation(&review, log)
+		if err != nil {
+			log.Error("failed to handle mutation", "err", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		response := admissionv1.AdmissionReview{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: admissionv1.SchemeGroupVersion.String(),
+				Kind:       "AdmissionReview",
+			},
+			Response: resp,
+		}
+
+		if err := encode(w, http.StatusOK, response); err != nil {
+			log.Error("failed to encode admission response", "err", err)
+		}
+	}
+}
+
+// handleMutation performs the admission logic and returns an AdmissionResponse.
+func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger) (*admissionv1.AdmissionResponse, error) {
+	if review.Request == nil {
+		return nil, errors.New("admission review request is nil")
+	}
+
+	log.Info("admission request received",
+		"uid", review.Request.UID,
+		"kind", review.Request.Kind,
+		"resource", review.Request.Resource,
+		"namespace", review.Request.Namespace,
+		"name", review.Request.Name,
+	)
+
+	// TODO: add mutation logic and JSON patch construction here
+	return &admissionv1.AdmissionResponse{
+		UID:     review.Request.UID,
+		Allowed: true,
+	}, nil
 }
