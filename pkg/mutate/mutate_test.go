@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/eric-carlsson/pod-image-admissiob/internal/config"
+	"github.com/eric-carlsson/pod-image-admissiob/pkg/config"
 
 	corev1 "k8s.io/api/core/v1"
 )

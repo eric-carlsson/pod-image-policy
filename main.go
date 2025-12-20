@@ -16,8 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/eric-carlsson/pod-image-admissiob/internal/config"
-	"github.com/eric-carlsson/pod-image-admissiob/internal/mutate"
+	"github.com/eric-carlsson/pod-image-admissiob/pkg/config"
+	"github.com/eric-carlsson/pod-image-admissiob/pkg/mutate"
 	"github.com/fsnotify/fsnotify"
 
 	admissionv1 "k8s.io/api/admission/v1"

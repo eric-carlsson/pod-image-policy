@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/eric-carlsson/pod-image-admissiob/internal/config"
+	"github.com/eric-carlsson/pod-image-admissiob/pkg/config"
 )
 
 // CompiledRule holds precompiled match patterns to avoid recompilation per image.

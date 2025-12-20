@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/eric-carlsson/pod-image-admissiob/internal/config"
+	"github.com/eric-carlsson/pod-image-admissiob/pkg/config"
 )
 
 func TestRulesMatchAndReplace(t *testing.T) {
