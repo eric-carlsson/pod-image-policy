@@ -115,7 +115,7 @@ func TestRulesMatchAndReplace(t *testing.T) {
 				t.Fatalf("expected repository to be compiled as glob")
 			}
 
-			matched, captures, err := RuleMatchesCompiled(rule, tc.registry, tc.repo, tc.tag, tc.digest)
+			matched, captures, err := RuleMatches(rule, tc.registry, tc.repo, tc.tag, tc.digest)
 			if err != nil {
 				t.Fatalf("match: %v", err)
 			}

@@ -9,8 +9,8 @@ import (
 	"github.com/eric-carlsson/pod-image-policy/pkg/config"
 )
 
-// CompiledRule holds precompiled match patterns to avoid recompilation per image.
-type CompiledRule struct {
+// Rule holds precompiled match patterns to avoid recompilation per image.
+type Rule struct {
 	Match   compiledMatch
 	Replace config.ImageReplace
 }
@@ -29,14 +29,14 @@ type compiledField struct {
 }
 
 // CompileRules precompiles glob patterns for faster matching and reuse.
-func CompileRules(rules []config.MutateRule) ([]CompiledRule, error) {
-	compiled := make([]CompiledRule, 0, len(rules))
+func CompileRules(rules []config.MutateRule) ([]Rule, error) {
+	compiled := make([]Rule, 0, len(rules))
 	for i, rule := range rules {
 		cm, err := compileMatch(rule.Match)
 		if err != nil {
 			return nil, fmt.Errorf("rule %d: %w", i, err)
 		}
-		compiled = append(compiled, CompiledRule{Match: cm, Replace: rule.Replace})
+		compiled = append(compiled, Rule{Match: cm, Replace: rule.Replace})
 	}
 	return compiled, nil
 }
@@ -85,8 +85,8 @@ func compileField(pattern *string) (compiledField, error) {
 	return compiledField{pattern: pattern, re: re, isGlob: true}, nil
 }
 
-// RuleMatchesCompiled matches using precompiled rule patterns.
-func RuleMatchesCompiled(rule CompiledRule, registry, repo, tag, digest string) (bool, map[string][]string, error) {
+// RuleMatches matches using precompiled rule patterns.
+func RuleMatches(rule Rule, registry, repo, tag, digest string) (bool, map[string][]string, error) {
 	captures := make(map[string][]string)
 
 	checks := []struct {
@@ -101,7 +101,7 @@ func RuleMatchesCompiled(rule CompiledRule, registry, repo, tag, digest string) 
 	}
 
 	for _, check := range checks {
-		ok, caps, err := matchFieldCompiled(check.cf, check.value)
+		ok, caps, err := matchField(check.cf, check.value)
 		if err != nil {
 			return false, nil, err
 		}
@@ -150,7 +150,7 @@ func ApplyReplace(registry, repo, tag, digest string, replace config.ImageReplac
 	return registry, repo, tag, digest, nil
 }
 
-func matchFieldCompiled(cf compiledField, value string) (bool, []string, error) {
+func matchField(cf compiledField, value string) (bool, []string, error) {
 	if cf.pattern == nil {
 		return true, nil, nil
 	}

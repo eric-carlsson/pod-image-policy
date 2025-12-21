@@ -24,7 +24,7 @@ func Replace(path string, value any) PatchOp {
 
 // Mutator caches compiled mutation rules for reuse across requests.
 type Mutator struct {
-	rules []rules.CompiledRule
+	rules []rules.Rule
 }
 
 // NewMutator compiles mutation rules for reuse.
@@ -87,7 +87,7 @@ func collectImageSlots(pod *corev1.Pod) []imageSlot {
 	return slots
 }
 
-func rewriteImage(imageStr string, compiledRules []rules.CompiledRule) (string, bool, bool, error) {
+func rewriteImage(imageStr string, compiledRules []rules.Rule) (string, bool, bool, error) {
 	named, err := image.ParseNamed(imageStr)
 	if err != nil {
 		return "", false, false, err
@@ -96,7 +96,7 @@ func rewriteImage(imageStr string, compiledRules []rules.CompiledRule) (string, 
 	registry, repo, tag, digest := image.ExtractParts(named)
 
 	for _, rule := range compiledRules {
-		matched, captures, err := rules.RuleMatchesCompiled(rule, registry, repo, tag, digest)
+		matched, captures, err := rules.RuleMatches(rule, registry, repo, tag, digest)
 		if err != nil {
 			return "", false, false, err
 		}
