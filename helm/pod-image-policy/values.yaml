@@ -246,8 +246,10 @@ config: {}
 #     rules:
 #       - match: { registry: "docker.io", repository: "*" }
 #         replace: { registry: "mirror.internal", repository: "docker-io/${1}"}
+#         message: "Image rewritten to use internal mirror"
 #       - match: { registry: "docker.io", repository: "apache/kafka" }
 #         replace: { registry: "dhi.io", repository: "kafka" }
+#         message: "Pod modified to use hardened kafka image"
 #   validate:
 #     rules:
 #       - match: { tag: "latest" }

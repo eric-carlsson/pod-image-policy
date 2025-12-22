@@ -13,6 +13,7 @@ import (
 type Rule struct {
 	Match   CompiledMatch
 	Replace config.ImageReplace
+	Message string
 }
 
 // CompiledMatch holds precompiled match patterns for all image fields.
@@ -37,7 +38,7 @@ func CompileRules(rules []config.MutateRule) ([]Rule, error) {
 		if err != nil {
 			return nil, fmt.Errorf("rule %d: %w", i, err)
 		}
-		compiled = append(compiled, Rule{Match: cm, Replace: rule.Replace})
+		compiled = append(compiled, Rule{Match: cm, Replace: rule.Replace, Message: rule.Message})
 	}
 	return compiled, nil
 }

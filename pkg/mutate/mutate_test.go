@@ -14,11 +14,12 @@ func TestRewritePodImages(t *testing.T) {
 	repo := "org/app"
 
 	cases := []struct {
-		name        string
-		pod         corev1.Pod
-		cfg         config.MutateConfig
-		wantPatches []PatchOp
-		wantErr     bool
+		name         string
+		pod          corev1.Pod
+		cfg          config.MutateConfig
+		wantPatches  []PatchOp
+		wantWarnings []string
+		wantErr      bool
 	}{
 		{
 			name: "replace main container",
@@ -28,6 +29,17 @@ func TestRewritePodImages(t *testing.T) {
 				Replace: config.ImageReplace{Registry: &mirror},
 			}}},
 			wantPatches: []PatchOp{Replace("/spec/containers/0/image", "mirror.io/library/nginx:1.2")},
+		},
+		{
+			name: "replace with warning message",
+			pod:  corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "nginx:1.2"}}}},
+			cfg: config.MutateConfig{Rules: []config.MutateRule{{
+				Match:   config.ImageMatch{},
+				Replace: config.ImageReplace{Registry: &mirror},
+				Message: "Image rewritten to use internal mirror",
+			}}},
+			wantPatches:  []PatchOp{Replace("/spec/containers/0/image", "mirror.io/library/nginx:1.2")},
+			wantWarnings: []string{"Image rewritten to use internal mirror: nginx:1.2 -> mirror.io/library/nginx:1.2"},
 		},
 		{
 			name: "matched but unchanged",
@@ -146,7 +158,7 @@ func TestRewritePodImages(t *testing.T) {
 				t.Fatalf("compile mutate rules: %v", err)
 			}
 
-			patches, err := mutator.RewritePodImages(&tc.pod)
+			patches, warnings, err := mutator.RewritePodImages(&tc.pod)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got none")
@@ -159,6 +171,10 @@ func TestRewritePodImages(t *testing.T) {
 
 			if !reflect.DeepEqual(patches, tc.wantPatches) {
 				t.Fatalf("patches mismatch:\n got: %#v\nwant: %#v", patches, tc.wantPatches)
+			}
+
+			if !reflect.DeepEqual(warnings, tc.wantWarnings) {
+				t.Fatalf("warnings mismatch:\n got: %#v\nwant: %#v", warnings, tc.wantWarnings)
 			}
 		})
 	}

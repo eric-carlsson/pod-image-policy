@@ -22,6 +22,7 @@ type MutateConfig struct {
 type MutateRule struct {
 	Match   ImageMatch   `yaml:"match"`
 	Replace ImageReplace `yaml:"replace"`
+	Message string       `yaml:"message"`
 }
 
 type ValidateConfig struct {

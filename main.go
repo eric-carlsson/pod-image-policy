@@ -302,7 +302,7 @@ func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger, mutat
 		return nil, fmt.Errorf("decode pod: %w", err)
 	}
 
-	patches, err := mutator.RewritePodImages(&pod)
+	patches, warnings, err := mutator.RewritePodImages(&pod)
 	if err != nil {
 		return nil, fmt.Errorf("rewrite images: %w", err)
 	}
@@ -320,6 +320,10 @@ func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger, mutat
 		pt := admissionv1.PatchTypeJSONPatch
 		response.PatchType = &pt
 		response.Patch = patchBytes
+	}
+
+	if len(warnings) > 0 {
+		response.Warnings = warnings
 	}
 
 	return response, nil
