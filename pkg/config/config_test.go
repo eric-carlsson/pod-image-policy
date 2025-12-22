@@ -3,7 +3,7 @@ package config
 import "testing"
 
 func TestValidateValidateConfig(t *testing.T) {
-	good := ValidateConfig{DefaultPolicy: "allow", Rules: []ValidateRule{{Action: "warn", Message: "msg"}}}
+	good := ValidateConfig{Rules: []ValidateRule{{Action: "warn", Message: "msg"}}}
 	if err := validateValidateConfig(good); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -12,10 +12,9 @@ func TestValidateValidateConfig(t *testing.T) {
 		name string
 		cfg  ValidateConfig
 	}{
-		{name: "bad defaultPolicy", cfg: ValidateConfig{DefaultPolicy: "maybe"}},
-		{name: "missing action", cfg: ValidateConfig{DefaultPolicy: "allow", Rules: []ValidateRule{{}}}},
-		{name: "invalid action", cfg: ValidateConfig{DefaultPolicy: "allow", Rules: []ValidateRule{{Action: "block"}}}},
-		{name: "deny without message", cfg: ValidateConfig{DefaultPolicy: "allow", Rules: []ValidateRule{{Action: "deny"}}}},
+		{name: "missing action", cfg: ValidateConfig{Rules: []ValidateRule{{}}}},
+		{name: "invalid action", cfg: ValidateConfig{Rules: []ValidateRule{{Action: "block"}}}},
+		{name: "deny without message", cfg: ValidateConfig{Rules: []ValidateRule{{Action: "deny"}}}},
 	}
 
 	for _, tc := range cases {

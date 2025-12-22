@@ -25,8 +25,7 @@ type MutateRule struct {
 }
 
 type ValidateConfig struct {
-	DefaultPolicy string         `yaml:"defaultPolicy"`
-	Rules         []ValidateRule `yaml:"rules"`
+	Rules []ValidateRule `yaml:"rules"`
 }
 
 type ValidateRule struct {
@@ -76,9 +75,7 @@ func Load(path string) (*AdmissionConfig, error) {
 
 // Default fills unset defaults in-place.
 func Default(cfg *AdmissionConfig) {
-	if cfg.Validate.DefaultPolicy == "" {
-		cfg.Validate.DefaultPolicy = "allow"
-	}
+	// Currently no defaults to set
 }
 
 // Validate checks configuration consistency.
@@ -124,10 +121,6 @@ func validateMutateRule(rule MutateRule) error {
 }
 
 func validateValidateConfig(vc ValidateConfig) error {
-	if vc.DefaultPolicy != "allow" && vc.DefaultPolicy != "deny" && vc.DefaultPolicy != "warn" {
-		return fmt.Errorf("validate.defaultPolicy must be allow, deny, or warn")
-	}
-
 	for i, rule := range vc.Rules {
 		if rule.Action == "" {
 			return fmt.Errorf("validate.rules[%d].action is required", i)

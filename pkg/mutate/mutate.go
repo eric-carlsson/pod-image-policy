@@ -1,8 +1,7 @@
 package mutate
 
 import (
-	"fmt"
-
+	"github.com/eric-carlsson/pod-image-policy/pkg/admission"
 	"github.com/eric-carlsson/pod-image-policy/pkg/config"
 	"github.com/eric-carlsson/pod-image-policy/pkg/image"
 	"github.com/eric-carlsson/pod-image-policy/pkg/rules"
@@ -45,11 +44,11 @@ func (m *Mutator) RewritePodImages(pod *corev1.Pod) ([]PatchOp, error) {
 		return nil, nil
 	}
 
-	slots := collectImageSlots(pod)
+	slots := admission.CollectImageSlots(pod)
 	var patches []PatchOp
 
 	for _, slot := range slots {
-		newImage, matched, changed, err := rewriteImage(slot.image, m.rules)
+		newImage, matched, changed, err := rewriteImage(slot.Image, m.rules)
 		if err != nil {
 			return nil, err
 		}
@@ -59,32 +58,11 @@ func (m *Mutator) RewritePodImages(pod *corev1.Pod) ([]PatchOp, error) {
 		}
 
 		if changed {
-			patches = append(patches, Replace(slot.path, newImage))
+			patches = append(patches, Replace(slot.Path, newImage))
 		}
 	}
 
 	return patches, nil
-}
-
-type imageSlot struct {
-	image string
-	path  string
-}
-
-func collectImageSlots(pod *corev1.Pod) []imageSlot {
-	var slots []imageSlot
-
-	for i, c := range pod.Spec.Containers {
-		slots = append(slots, imageSlot{image: c.Image, path: fmt.Sprintf("/spec/containers/%d/image", i)})
-	}
-	for i, c := range pod.Spec.InitContainers {
-		slots = append(slots, imageSlot{image: c.Image, path: fmt.Sprintf("/spec/initContainers/%d/image", i)})
-	}
-	for i, c := range pod.Spec.EphemeralContainers {
-		slots = append(slots, imageSlot{image: c.Image, path: fmt.Sprintf("/spec/ephemeralContainers/%d/image", i)})
-	}
-
-	return slots
 }
 
 func rewriteImage(imageStr string, compiledRules []rules.Rule) (string, bool, bool, error) {

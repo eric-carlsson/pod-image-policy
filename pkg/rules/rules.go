@@ -11,11 +11,12 @@ import (
 
 // Rule holds precompiled match patterns to avoid recompilation per image.
 type Rule struct {
-	Match   compiledMatch
+	Match   CompiledMatch
 	Replace config.ImageReplace
 }
 
-type compiledMatch struct {
+// CompiledMatch holds precompiled match patterns for all image fields.
+type CompiledMatch struct {
 	Registry   compiledField
 	Repository compiledField
 	Tag        compiledField
@@ -32,7 +33,7 @@ type compiledField struct {
 func CompileRules(rules []config.MutateRule) ([]Rule, error) {
 	compiled := make([]Rule, 0, len(rules))
 	for i, rule := range rules {
-		cm, err := compileMatch(rule.Match)
+		cm, err := CompileMatch(rule.Match)
 		if err != nil {
 			return nil, fmt.Errorf("rule %d: %w", i, err)
 		}
@@ -41,8 +42,9 @@ func CompileRules(rules []config.MutateRule) ([]Rule, error) {
 	return compiled, nil
 }
 
-func compileMatch(m config.ImageMatch) (compiledMatch, error) {
-	var cm compiledMatch
+// CompileMatch compiles a single ImageMatch into a CompiledMatch.
+func CompileMatch(m config.ImageMatch) (CompiledMatch, error) {
+	var cm CompiledMatch
 	var err error
 
 	cm.Registry, err = compileField(m.Registry)

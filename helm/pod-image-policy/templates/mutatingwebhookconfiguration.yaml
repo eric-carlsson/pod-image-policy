@@ -1,4 +1,4 @@
-{{- if .Values.webhook.mutating.enabled }}
+{{- if .Values.webhooks.mutating.enabled }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -7,32 +7,32 @@ metadata:
     {{- include "pod-image-policy.labels" . | nindent 4 }}
 webhooks:
   - name: {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
-    admissionReviewVersions: {{ toYaml .Values.webhook.mutating.admissionReviewVersions | nindent 4 }}
-    sideEffects: {{ .Values.webhook.mutating.sideEffects }}
-    timeoutSeconds: {{ .Values.webhook.mutating.timeoutSeconds }}
-    failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
-    matchPolicy: {{ .Values.webhook.mutating.matchPolicy }}
-    {{- with .Values.webhook.mutating.objectSelector }}
+    admissionReviewVersions: {{ toYaml .Values.webhooks.mutating.admissionReviewVersions | nindent 4 }}
+    sideEffects: {{ .Values.webhooks.mutating.sideEffects }}
+    timeoutSeconds: {{ .Values.webhooks.mutating.timeoutSeconds }}
+    failurePolicy: {{ .Values.webhooks.mutating.failurePolicy }}
+    matchPolicy: {{ .Values.webhooks.mutating.matchPolicy }}
+    {{- with .Values.webhooks.mutating.objectSelector }}
     objectSelector:
       {{- toYaml . | nindent 6 }}
     {{- end }}
-    {{- with .Values.webhook.mutating.namespaceSelector }}
+    {{- with .Values.webhooks.mutating.namespaceSelector }}
     namespaceSelector:
       {{- toYaml . | nindent 6 }}
     {{- end }}
     rules:
-      {{- toYaml .Values.webhook.mutating.rules | nindent 6 }}
+      {{- toYaml .Values.webhooks.mutating.rules | nindent 6 }}
     clientConfig:
       service:
         name: {{ include "pod-image-policy.fullname" . }}
         namespace: {{ .Release.Namespace }}
-        path: {{ .Values.webhook.mutating.path }}
-        {{- if .Values.webhook.mutating.port }}
-        port: {{ .Values.webhook.mutating.port }}
+        path: {{ .Values.webhooks.mutating.path }}
+        {{- if .Values.webhooks.mutating.port }}
+        port: {{ .Values.webhooks.mutating.port }}
         {{- else }}
         port: {{ .Values.service.port }}
         {{- end }}
-      {{- with .Values.webhook.mutating.caBundle }}
+      {{- with .Values.webhooks.mutating.caBundle }}
       caBundle: {{ . }}
       {{- end }}
 {{- end }}

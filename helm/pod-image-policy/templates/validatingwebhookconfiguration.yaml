@@ -1,0 +1,38 @@
+{{- if .Values.webhooks.validating.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "pod-image-policy.fullname" . }}-validating
+  labels:
+    {{- include "pod-image-policy.labels" . | nindent 4 }}
+webhooks:
+  - name: {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: {{ toYaml .Values.webhooks.validating.admissionReviewVersions | nindent 4 }}
+    sideEffects: {{ .Values.webhooks.validating.sideEffects }}
+    timeoutSeconds: {{ .Values.webhooks.validating.timeoutSeconds }}
+    failurePolicy: {{ .Values.webhooks.validating.failurePolicy }}
+    matchPolicy: {{ .Values.webhooks.validating.matchPolicy }}
+    {{- with .Values.webhooks.validating.objectSelector }}
+    objectSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.webhooks.validating.namespaceSelector }}
+    namespaceSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    rules:
+      {{- toYaml .Values.webhooks.validating.rules | nindent 6 }}
+    clientConfig:
+      service:
+        name: {{ include "pod-image-policy.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: {{ .Values.webhooks.validating.path }}
+        {{- if .Values.webhooks.validating.port }}
+        port: {{ .Values.webhooks.validating.port }}
+        {{- else }}
+        port: {{ .Values.service.port }}
+        {{- end }}
+      {{- with .Values.webhooks.validating.caBundle }}
+      caBundle: {{ . }}
+      {{- end }}
+{{- end }}

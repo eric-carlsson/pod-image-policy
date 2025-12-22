@@ -63,7 +63,7 @@ service:
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 9443
 
-webhook:
+webhooks:
   mutating:
     enabled: true
     path: /mutate
@@ -92,6 +92,39 @@ webhook:
     objectSelector:
       matchExpressions:
         - key: pod-image-policy.io/ignore-mutation
+          operator: DoesNotExist
+
+    # Optional namespaceSelector to include/exclude namespaces
+    namespaceSelector: {}
+
+  validating:
+    enabled: true
+    path: /validate
+    # Service port used by the webhook; defaults to the chart service.port
+    port: ""
+    failurePolicy: Ignore
+    matchPolicy: Equivalent
+    sideEffects: None
+    timeoutSeconds: 5
+    admissionReviewVersions:
+      - v1
+    # Base64-encoded CA bundle. Leave empty if injected by cert-manager cainjector.
+    caBundle: ""
+    # Rules the webhook applies to.
+    rules:
+      - operations:
+          - CREATE
+          - UPDATE
+        apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        resources:
+          - pods
+    # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
+    objectSelector:
+      matchExpressions:
+        - key: pod-image-policy.io/ignore-validation
           operator: DoesNotExist
 
     # Optional namespaceSelector to include/exclude namespaces
@@ -211,11 +244,15 @@ config: {}
 # config:
 #   mutate:
 #     rules:
-#       - match: { repository: "library/nginx" }
-#         replace: { registry: "mirror.example.com" }
+#       - match: { registry: "docker.io", repository: "*" }
+#         replace: { registry: "mirror.internal", repository: "docker-io/${1}"}
+#       - match: { registry: "docker.io", repository: "apache/kafka" }
+#         replace: { registry: "dhi.io", repository: "kafka" }
 #   validate:
-#     defaultPolicy: allow
 #     rules:
+#       - match: { tag: "latest" }
+#         action: deny
+#         message: "'latest' tags are not allowed"
 #       - match: { tag: "*rc*" }
 #         action: warn
 #         message: "Release candidates are discouraged"

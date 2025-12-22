@@ -18,6 +18,7 @@ import (
 
 	"github.com/eric-carlsson/pod-image-policy/pkg/config"
 	"github.com/eric-carlsson/pod-image-policy/pkg/mutate"
+	"github.com/eric-carlsson/pod-image-policy/pkg/validate"
 	"github.com/fsnotify/fsnotify"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -59,13 +60,16 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 
 	log := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug}))
 
-	mutator, err := loadMutator(log, srvCfg.configFile)
+	mutator, validator, err := loadAdmission(log, srvCfg.configFile)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
 	var mutatorPtr atomic.Pointer[mutate.Mutator]
 	mutatorPtr.Store(mutator)
+
+	var validatorPtr atomic.Pointer[validate.Validator]
+	validatorPtr.Store(validator)
 
 	mux := http.NewServeMux()
 
@@ -79,7 +83,8 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 		w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/mutate", mutateHandler(log, &mutatorPtr))
+	mux.HandleFunc("/mutate", admissionHandler(log, &mutatorPtr, handleMutation))
+	mux.HandleFunc("/validate", admissionHandler(log, &validatorPtr, handleValidation))
 
 	srv := http.Server{
 		Addr:     srvCfg.Addr,
@@ -91,8 +96,9 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 	defer cancel()
 
 	if srvCfg.configFile != "" {
-		go watchConfig(ctx, log, srvCfg.configFile, func(newMutator *mutate.Mutator) {
+		go watchConfig(ctx, log, srvCfg.configFile, func(newMutator *mutate.Mutator, newValidator *validate.Validator) {
 			mutatorPtr.Store(newMutator)
+			validatorPtr.Store(newValidator)
 		})
 	}
 
@@ -121,15 +127,20 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 	return nil
 }
 
-func loadMutator(log *slog.Logger, path string) (*mutate.Mutator, error) {
+func loadAdmission(log *slog.Logger, path string) (*mutate.Mutator, *validate.Validator, error) {
 	admissionConfig, err := config.Load(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mutator, err := mutate.NewMutator(admissionConfig.Mutate)
 	if err != nil {
-		return nil, fmt.Errorf("compile mutate rules: %w", err)
+		return nil, nil, fmt.Errorf("compile mutate rules: %w", err)
+	}
+
+	validator, err := validate.NewValidator(admissionConfig.Validate)
+	if err != nil {
+		return nil, nil, fmt.Errorf("compile validate rules: %w", err)
 	}
 
 	log.Info("admission config (re)loaded",
@@ -138,7 +149,7 @@ func loadMutator(log *slog.Logger, path string) (*mutate.Mutator, error) {
 		"validateRules", len(admissionConfig.Validate.Rules),
 	)
 
-	return mutator, nil
+	return mutator, validator, nil
 }
 
 func encode[T any](w http.ResponseWriter, status int, v T) error {
@@ -161,7 +172,12 @@ func decode[T any](r *http.Request) (T, error) {
 	return v, nil
 }
 
-func mutateHandler(log *slog.Logger, mutatorPtr *atomic.Pointer[mutate.Mutator]) http.HandlerFunc {
+// admissionHandler creates a generic HTTP handler for admission webhooks.
+func admissionHandler[T any](
+	log *slog.Logger,
+	processorPtr *atomic.Pointer[T],
+	handler func(*admissionv1.AdmissionReview, *slog.Logger, *T) (*admissionv1.AdmissionResponse, error),
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		review, err := decode[admissionv1.AdmissionReview](r)
 		if err != nil {
@@ -170,14 +186,15 @@ func mutateHandler(log *slog.Logger, mutatorPtr *atomic.Pointer[mutate.Mutator])
 			return
 		}
 
-		mutator := mutatorPtr.Load()
-		if mutator == nil {
-			mutator = &mutate.Mutator{}
+		processor := processorPtr.Load()
+		if processor == nil {
+			var zero T
+			processor = &zero
 		}
 
-		resp, err := handleMutation(&review, log, mutator)
+		resp, err := handler(&review, log, processor)
 		if err != nil {
-			log.Error("failed to handle mutation", "err", err)
+			log.Error("failed to handle admission", "err", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -196,7 +213,7 @@ func mutateHandler(log *slog.Logger, mutatorPtr *atomic.Pointer[mutate.Mutator])
 	}
 }
 
-func watchConfig(ctx context.Context, log *slog.Logger, path string, onReload func(*mutate.Mutator)) {
+func watchConfig(ctx context.Context, log *slog.Logger, path string, onReload func(*mutate.Mutator, *validate.Validator)) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Error("config watcher start failed", "err", err)
@@ -233,13 +250,13 @@ func watchConfig(ctx context.Context, log *slog.Logger, path string, onReload fu
 			}
 			lastReload.Store(now)
 
-			newMutator, err := loadMutator(log, path)
+			newMutator, newValidator, err := loadAdmission(log, path)
 			if err != nil {
 				log.Error("config reload failed", "err", err)
 				continue
 			}
 
-			onReload(newMutator)
+			onReload(newMutator, newValidator)
 		case err := <-watcher.Errors:
 			log.Error("config watcher error", "err", err)
 		}
@@ -303,6 +320,48 @@ func handleMutation(review *admissionv1.AdmissionReview, log *slog.Logger, mutat
 		pt := admissionv1.PatchTypeJSONPatch
 		response.PatchType = &pt
 		response.Patch = patchBytes
+	}
+
+	return response, nil
+}
+
+// handleValidation performs validation logic and returns an AdmissionResponse.
+func handleValidation(review *admissionv1.AdmissionReview, log *slog.Logger, validator *validate.Validator) (*admissionv1.AdmissionResponse, error) {
+	if review.Request == nil {
+		return nil, errors.New("admission review request is nil")
+	}
+
+	log.Info("validation request received",
+		"uid", review.Request.UID,
+		"kind", review.Request.Kind,
+		"resource", review.Request.Resource,
+		"namespace", review.Request.Namespace,
+		"name", review.Request.Name,
+	)
+
+	var pod corev1.Pod
+	if err := json.Unmarshal(review.Request.Object.Raw, &pod); err != nil {
+		return nil, fmt.Errorf("decode pod: %w", err)
+	}
+
+	result, err := validator.ValidatePodImages(&pod)
+	if err != nil {
+		return nil, fmt.Errorf("validate images: %w", err)
+	}
+
+	response := &admissionv1.AdmissionResponse{
+		UID:     review.Request.UID,
+		Allowed: result.Allowed,
+	}
+
+	if !result.Allowed {
+		response.Result = &metav1.Status{
+			Message: result.Message,
+		}
+	}
+
+	if len(result.Warnings) > 0 {
+		response.Warnings = result.Warnings
 	}
 
 	return response, nil
