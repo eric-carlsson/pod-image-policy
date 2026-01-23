@@ -1,0 +1,11 @@
+{{- if and .Values.certManager.enabled .Values.certManager.createSelfSignedIssuer }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "pod-image-policy.fullname" . }}-selfsigned
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pod-image-policy.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+{{- end }}

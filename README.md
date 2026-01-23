@@ -61,7 +61,36 @@ A Kubernetes admission controller that validates and mutates container image ref
 
 A Helm chart is available in [helm/pod-image-policy](helm/pod-image-policy).
 
-1. Create namespace and TLS secret (example self-signed):
+A TLS certificate is required to enable communication between the API server and the webhook. By default, the chart is configured with a [cert-manager](https://cert-manager.io/docs/) integration that automatically creates a self-signed issuer and TLS certificate. This can be disabled if you want to bring your own TLS certificate.
+
+### With cert-manager
+
+Deploy the Helm chart with default values. This enables the cert-manager integration and creates a self-signed issuer:
+
+```sh
+helm upgrade pod-image-policy ./helm/pod-image-policy \
+  --install \
+  --namespace pod-image-policy \
+  --create-namespace
+```
+
+To use an existing cert-manager issuer instead of the self-signed one:
+
+```sh
+helm upgrade pod-image-policy ./helm/pod-image-policy \
+  --install \
+  --namespace pod-image-policy \
+  --create-namespace \
+  --set certManager.createSelfSignedIssuer=false \
+  --set certManager.issuerRef.name=my-issuer \
+  --set certManager.issuerRef.kind=ClusterIssuer
+```
+
+### Without cert-manager
+
+If you prefer to manage certificates manually without cert-manager:
+
+1. Create namespace and TLS secret:
 
    ```sh
    kubectl create namespace pod-image-policy
@@ -81,13 +110,47 @@ A Helm chart is available in [helm/pod-image-policy](helm/pod-image-policy).
    helm upgrade pod-image-policy ./helm/pod-image-policy \
      --install \
      --namespace pod-image-policy \
-     --set image.repository=your-registry/pod-image-policy \
-     --set image.tag=latest \
-     --set webhook.mutating.caBundle=$(cat /tmp/tls.crt | base64 | tr -d '\n') \
-     --set-json 'volumes=[{"name":"certs","secret":{"secretName":"pod-image-policy-tls"}}]' \
-     --set-json 'volumeMounts=[{"name":"certs","mountPath":"/certs","readOnly":true}]' \
-     --set-json 'args=["-certFile=/certs/tls.crt","-keyFile=/certs/tls.key","-policyFile=/config/policy.yaml","-addr=:9443"]' \
-     --set-json 'config={"mutate":{"rules":[{"match":{"registry":"^docker\\.io$","repository":"^library/(.*)$"},"replace":{"registry":"registry.internal","repository":"mirror/library/${1}"}}]}}'
+     --set certManager.enabled=false \
+     --set webhooks.mutating.caBundle=$(cat /tmp/tls.crt | base64 | tr -d '\n') \
+     --set webhooks.validating.caBundle=$(cat /tmp/tls.crt | base64 | tr -d '\n') \
+     --set-json 'volumes=[{"name":"tls","secret":{"secretName":"pod-image-policy-tls"}}]' \
+     --set-json 'volumeMounts=[{"name":"tls","mountPath":"/tls","readOnly":true}]' \
+     --set-json 'args=["-certFile=/tls/tls.crt","-keyFile=/tls/tls.key"]'
    ```
 
-See Taskfile targets for local/dev deployment options.
+### Custom policy configuration
+
+By default, the webhook allows all images without mutations or restrictions. To enforce custom image policies, configure the `policy` value with your desired validation and mutation rules.
+
+**Using a values file (recommended):**
+
+Create `custom-values.yaml`:
+
+```yaml
+policy:
+  mutate:
+    rules:
+      - match:
+          registry: "^docker\.io$"
+          repository: "^library/(.*)$"
+        replace:
+          registry: "registry.internal"
+          repository: "mirror/library/${1}"
+        message: "Image rewritten to use internal mirror"
+  validate:
+    rules:
+      - match:
+          tag: "^latest$"
+        action: deny
+        message: "'latest' tags are not allowed"
+```
+
+Deploy with custom policy:
+
+```sh
+helm upgrade pod-image-policy ./helm/pod-image-policy \
+  --install \
+  --namespace pod-image-policy \
+  --create-namespace \
+  --values custom-values.yaml
+```
