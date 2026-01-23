@@ -37,13 +37,3 @@ func CollectImageSlots(pod *corev1.Pod) []ImageSlot {
 
 	return slots
 }
-
-// CollectImages returns all container image strings from a pod.
-func CollectImages(pod *corev1.Pod) []string {
-	slots := CollectImageSlots(pod)
-	images := make([]string, len(slots))
-	for i, slot := range slots {
-		images[i] = slot.Image
-	}
-	return images
-}

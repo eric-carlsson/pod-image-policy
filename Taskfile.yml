@@ -118,7 +118,7 @@ tasks:
       - build-image
 
   run:
-    desc: Run the application locally
+    desc: Run the application in a local container
     deps:
       - build-image
     cmd: $DOCKER_COMMAND run -v "$PWD":/certs -p 9443:9443 {{ .IMAGE_NAME }}:{{ .IMAGE_HASH }} -certFile=/certs/localhost.crt -keyFile=/certs/localhost.key

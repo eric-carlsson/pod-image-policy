@@ -40,13 +40,13 @@ spec:
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if or .Values.args .Values.config }}
+          {{- if or .Values.args .Values.policy }}
           args:
             {{- with .Values.args }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            {{- if .Values.config }}
-            - "-configFile=/config/config.yaml"
+            {{- if .Values.policy }}
+            - "-policyFile=/policy/policy.yaml"
             {{- end }}
           {{- end }}
           ports:
@@ -65,23 +65,23 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if or .Values.config .Values.volumeMounts }}
+          {{- if or .Values.policy .Values.volumeMounts }}
           volumeMounts:
-            {{- if .Values.config }}
-            - name: config
-              mountPath: /config
+            {{- if .Values.policy }}
+            - name: policy
+              mountPath: /policy
               readOnly: true
             {{- end }}
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
-      {{- if or .Values.config .Values.volumes }}
+      {{- if or .Values.policy .Values.volumes }}
       volumes:
-        {{- if .Values.config }}
-        - name: config
+        {{- if .Values.policy }}
+        - name: policy
           configMap:
-            name: {{ include "pod-image-policy.fullname" . }}-config
+            name: {{ include "pod-image-policy.fullname" . }}-policy
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

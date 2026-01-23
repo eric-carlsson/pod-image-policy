@@ -36,7 +36,7 @@ A Helm chart is available in [helm/pod-image-policy](helm/pod-image-policy).
      --set webhook.mutating.caBundle=$(cat /tmp/tls.crt | base64 | tr -d '\n') \
      --set-json 'volumes=[{"name":"certs","secret":{"secretName":"pod-image-policy-tls"}}]' \
      --set-json 'volumeMounts=[{"name":"certs","mountPath":"/certs","readOnly":true}]' \
-     --set-json 'args=["-certFile=/certs/tls.crt","-keyFile=/certs/tls.key","-configFile=/config/config.yaml","-addr=:9443"]' \
+     --set-json 'args=["-certFile=/certs/tls.crt","-keyFile=/certs/tls.key","-configFile=/config/policy.yaml","-addr=:9443"]' \
      --set-json 'config={"mutate":{"rules":[{"match":{"registry":"docker.io","repository":"library/*"},"replace":{"registry":"registry.internal","repository":"mirror/{$1}"}}]}}'
    ```
 

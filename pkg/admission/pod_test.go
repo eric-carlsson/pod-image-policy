@@ -41,28 +41,3 @@ func TestCollectImageSlots(t *testing.T) {
 		}
 	}
 }
-
-func TestCollectImages(t *testing.T) {
-	pod := &corev1.Pod{
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{Image: "nginx:1.0"},
-				{Image: "redis:latest"},
-			},
-		},
-	}
-
-	images := CollectImages(pod)
-
-	expected := []string{"nginx:1.0", "redis:latest"}
-
-	if len(images) != len(expected) {
-		t.Fatalf("expected %d images, got %d", len(expected), len(images))
-	}
-
-	for i, exp := range expected {
-		if images[i] != exp {
-			t.Errorf("image %d: expected %s, got %s", i, exp, images[i])
-		}
-	}
-}
