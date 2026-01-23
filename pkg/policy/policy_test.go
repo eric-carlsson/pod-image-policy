@@ -106,6 +106,74 @@ validate:
 	}
 }
 
+func TestParse_AutoAnchoring(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		input   string
+		matches bool
+	}{
+		{
+			name:    "no anchors - auto-anchored for exact match",
+			pattern: "example",
+			input:   "example",
+			matches: true,
+		},
+		{
+			name:    "no anchors - does not match prefix",
+			pattern: "example",
+			input:   "example-suffix",
+			matches: false,
+		},
+		{
+			name:    "no anchors - does not match suffix",
+			pattern: "example",
+			input:   "prefix-example",
+			matches: false,
+		},
+		{
+			name:    "explicit start anchor - no end anchor added",
+			pattern: "^v[0-9]",
+			input:   "v1-beta", // matches "^v[0-9]" but would fail "^v[0-9]$"
+			matches: true,
+		},
+		{
+			name:    "explicit end anchor - no start anchor added",
+			pattern: "[0-9]$",
+			input:   "beta-1", // matches "[0-9]$" but would fail "^[0-9]$"
+			matches: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `validate:
+  rules:
+    - match:
+        tag: "` + tt.pattern + `"
+      action: deny
+`
+			policy, err := Parse(strings.NewReader(content))
+			if err != nil {
+				t.Fatalf("Parse() unexpected error: %v", err)
+			}
+
+			if len(policy.Validate.Rules) == 0 {
+				t.Fatal("Expected at least one validation rule")
+			}
+
+			rule := policy.Validate.Rules[0]
+			img := image.Image{Tag: tt.input}
+			matches := rule.Match.Match(img)
+
+			if matches != tt.matches {
+				t.Errorf("Pattern %q against %q: got %v, want %v (compiled as: %s)",
+					tt.pattern, tt.input, matches, tt.matches, rule.Match.Tag.String())
+			}
+		})
+	}
+}
+
 func TestMatch_Match(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -169,46 +237,6 @@ func TestMatch_Match(t *testing.T) {
 				Digest: "sha256:abcd",
 			},
 			expect: false,
-		},
-		{
-			name: "auto-anchored pattern matches exactly",
-			match: Match{
-				Tag: mexp("^latest$"), // simulates "latest" after auto-anchoring
-			},
-			img: image.Image{
-				Tag: "latest",
-			},
-			expect: true,
-		},
-		{
-			name: "auto-anchored pattern rejects prefix match",
-			match: Match{
-				Tag: mexp("^latest$"), // simulates "latest" after auto-anchoring
-			},
-			img: image.Image{
-				Tag: "latest-beta",
-			},
-			expect: false,
-		},
-		{
-			name: "prefix-only pattern with start anchor",
-			match: Match{
-				Tag: mexp("^v.*"), // explicit ^ only, no auto-anchoring
-			},
-			img: image.Image{
-				Tag: "v1.2.3-beta",
-			},
-			expect: true,
-		},
-		{
-			name: "suffix-only pattern with end anchor",
-			match: Match{
-				Repository: mexp(".*-test$"), // explicit $ only, no auto-anchoring
-			},
-			img: image.Image{
-				Repository: "myapp-test",
-			},
-			expect: true,
 		},
 	}
 
