@@ -21,7 +21,9 @@ spec:
     group: cert-manager.io
   privateKey:
     algorithm: {{ .Values.certManager.algorithm }}
+    {{- if ne .Values.certManager.algorithm "Ed25519" }}
     size: {{ .Values.certManager.size }}
+    {{- end }}
   dnsNames:
     - {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
     - {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
