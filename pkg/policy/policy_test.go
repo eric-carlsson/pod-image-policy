@@ -27,14 +27,14 @@ func TestParse(t *testing.T) {
 			content: `mutate:
   rules:
     - match:
-        registry: "^old-registry\\.com$"
+        registry: "old-registry\\.com"
       replace:
         registry: "new-registry.com"
       message: "migrating to new registry"
 validate:
   rules:
     - match:
-        repository: "^unsafe/.*$"
+        repository: "unsafe/.*"
       action: "Deny "
       message: "unsafe images not allowed"
 `,
@@ -101,6 +101,74 @@ validate:
 				if policy == nil {
 					t.Error("Parse() returned nil policy")
 				}
+			}
+		})
+	}
+}
+
+func TestParse_AutoAnchoring(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		input   string
+		matches bool
+	}{
+		{
+			name:    "no anchors - auto-anchored for exact match",
+			pattern: "example",
+			input:   "example",
+			matches: true,
+		},
+		{
+			name:    "no anchors - does not match prefix",
+			pattern: "example",
+			input:   "example-suffix",
+			matches: false,
+		},
+		{
+			name:    "no anchors - does not match suffix",
+			pattern: "example",
+			input:   "prefix-example",
+			matches: false,
+		},
+		{
+			name:    "explicit start anchor - no end anchor added",
+			pattern: "^v[0-9]",
+			input:   "v1-beta", // matches "^v[0-9]" but would fail "^v[0-9]$"
+			matches: true,
+		},
+		{
+			name:    "explicit end anchor - no start anchor added",
+			pattern: "[0-9]$",
+			input:   "beta-1", // matches "[0-9]$" but would fail "^[0-9]$"
+			matches: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `validate:
+  rules:
+    - match:
+        tag: "` + tt.pattern + `"
+      action: deny
+`
+			policy, err := Parse(strings.NewReader(content))
+			if err != nil {
+				t.Fatalf("Parse() unexpected error: %v", err)
+			}
+
+			if len(policy.Validate.Rules) == 0 {
+				t.Fatal("Expected at least one validation rule")
+			}
+
+			rule := policy.Validate.Rules[0]
+			img := image.Image{Tag: tt.input}
+			matches := rule.Match.Match(img)
+
+			if matches != tt.matches {
+				t.Errorf("Pattern %q against %q: got %v, want %v (compiled as: %s)",
+					tt.pattern, tt.input, matches, tt.matches, rule.Match.Tag.String())
 			}
 		})
 	}
