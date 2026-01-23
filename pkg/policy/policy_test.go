@@ -27,14 +27,14 @@ func TestParse(t *testing.T) {
 			content: `mutate:
   rules:
     - match:
-        registry: "^old-registry\\.com$"
+        registry: "old-registry\\.com"
       replace:
         registry: "new-registry.com"
       message: "migrating to new registry"
 validate:
   rules:
     - match:
-        repository: "^unsafe/.*$"
+        repository: "unsafe/.*"
       action: "Deny "
       message: "unsafe images not allowed"
 `,
@@ -169,6 +169,46 @@ func TestMatch_Match(t *testing.T) {
 				Digest: "sha256:abcd",
 			},
 			expect: false,
+		},
+		{
+			name: "auto-anchored pattern matches exactly",
+			match: Match{
+				Tag: mexp("^latest$"), // simulates "latest" after auto-anchoring
+			},
+			img: image.Image{
+				Tag: "latest",
+			},
+			expect: true,
+		},
+		{
+			name: "auto-anchored pattern rejects prefix match",
+			match: Match{
+				Tag: mexp("^latest$"), // simulates "latest" after auto-anchoring
+			},
+			img: image.Image{
+				Tag: "latest-beta",
+			},
+			expect: false,
+		},
+		{
+			name: "prefix-only pattern with start anchor",
+			match: Match{
+				Tag: mexp("^v.*"), // explicit ^ only, no auto-anchoring
+			},
+			img: image.Image{
+				Tag: "v1.2.3-beta",
+			},
+			expect: true,
+		},
+		{
+			name: "suffix-only pattern with end anchor",
+			match: Match{
+				Repository: mexp(".*-test$"), // explicit $ only, no auto-anchoring
+			},
+			img: image.Image{
+				Repository: "myapp-test",
+			},
+			expect: true,
 		},
 	}
 

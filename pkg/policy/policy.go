@@ -66,7 +66,17 @@ type MatchExp struct {
 }
 
 func (me *MatchExp) UnmarshalYAML(node *yaml.Node) error {
-	exp, err := regexp.Compile(node.Value)
+	pattern := node.Value
+
+	// Automatically anchor the pattern if neither ^ nor $ is present.
+	hasStart := strings.HasPrefix(pattern, "^")
+	hasEnd := strings.HasSuffix(pattern, "$")
+
+	if !hasStart && !hasEnd {
+		pattern = "^" + pattern + "$"
+	}
+
+	exp, err := regexp.Compile(pattern)
 	if err != nil {
 		return fmt.Errorf("column %v: %w", node.Column, err)
 	}
