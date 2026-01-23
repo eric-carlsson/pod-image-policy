@@ -40,13 +40,17 @@ spec:
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if or .Values.args .Values.policy }}
+          {{- if or .Values.args .Values.policy .Values.certManager.enabled }}
           args:
             {{- with .Values.args }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
             {{- if .Values.policy }}
             - "-policyFile=/policy/policy.yaml"
+            {{- end }}
+            {{- if .Values.certManager.enabled }}
+            - "-certFile=/tls/tls.crt"
+            - "-keyFile=/tls/tls.key"
             {{- end }}
           {{- end }}
           ports:
@@ -65,23 +69,33 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if or .Values.policy .Values.volumeMounts }}
+          {{- if or .Values.policy .Values.certManager.enabled .Values.volumeMounts }}
           volumeMounts:
             {{- if .Values.policy }}
             - name: policy
               mountPath: /policy
               readOnly: true
             {{- end }}
+            {{- if .Values.certManager.enabled }}
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+            {{- end }}
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
-      {{- if or .Values.policy .Values.volumes }}
+      {{- if or .Values.policy .Values.certManager.enabled .Values.volumes }}
       volumes:
         {{- if .Values.policy }}
         - name: policy
           configMap:
             name: {{ include "pod-image-policy.fullname" . }}-policy
+        {{- end }}
+        {{- if .Values.certManager.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ include "pod-image-policy.fullname" . }}-webhook-tls
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

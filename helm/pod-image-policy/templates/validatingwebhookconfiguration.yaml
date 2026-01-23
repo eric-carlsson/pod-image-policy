@@ -5,6 +5,10 @@ metadata:
   name: {{ include "pod-image-policy.fullname" . }}-validating
   labels:
     {{- include "pod-image-policy.labels" . | nindent 4 }}
+  {{- if .Values.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "pod-image-policy.fullname" . }}-webhook-tls
+  {{- end }}
 webhooks:
   - name: {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
     admissionReviewVersions: {{ toYaml .Values.webhooks.validating.admissionReviewVersions | nindent 4 }}

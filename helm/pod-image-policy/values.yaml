@@ -61,73 +61,6 @@ service:
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 9443
 
-webhooks:
-  mutating:
-    enabled: true
-    path: /mutate
-    # Service port used by the webhook; defaults to `service.port`
-    port: ""
-    failurePolicy: Ignore
-    matchPolicy: Equivalent
-    sideEffects: None
-    timeoutSeconds: 5
-    admissionReviewVersions:
-      - v1
-    # Base64-encoded CA bundle. Leave empty if injected by cert-manager cainjector.
-    caBundle: ""
-    # Rules the webhook applies to.
-    rules:
-      - operations:
-          - CREATE
-          - UPDATE
-        apiGroups:
-          - ""
-        apiVersions:
-          - v1
-        resources:
-          - pods
-    # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
-    objectSelector:
-      matchExpressions:
-        - key: pod-image-policy.io/ignore-mutation
-          operator: DoesNotExist
-
-    # Optional namespaceSelector to include/exclude namespaces
-    namespaceSelector: {}
-
-  validating:
-    enabled: true
-    path: /validate
-    # Service port used by the webhook; defaults to `service.port`
-    port: ""
-    failurePolicy: Ignore
-    matchPolicy: Equivalent
-    sideEffects: None
-    timeoutSeconds: 5
-    admissionReviewVersions:
-      - v1
-    # Base64-encoded CA bundle. Leave empty if injected by cert-manager cainjector.
-    caBundle: ""
-    # Rules the webhook applies to.
-    rules:
-      - operations:
-          - CREATE
-          - UPDATE
-        apiGroups:
-          - ""
-        apiVersions:
-          - v1
-        resources:
-          - pods
-    # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
-    objectSelector:
-      matchExpressions:
-        - key: pod-image-policy.io/ignore-validation
-          operator: DoesNotExist
-
-    # Optional namespaceSelector to include/exclude namespaces
-    namespaceSelector: {}
-
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
@@ -179,8 +112,107 @@ tolerations: []
 
 affinity: {}
 
+# Configure cert-manager to manage webhook TLS certificates.
+# Requires cert-manager to be installed in the cluster.
+# When disabled, you must provide certificates manually via volumes/volumeMounts.
+certManager:
+  enabled: true
+  # Create a namespaced self-signed Issuer for the webhook certificate.
+  # Set to false if using an existing issuer (configured via issuerRef below).
+  createSelfSignedIssuer: true
+  # Reference to an existing cert-manager Issuer or ClusterIssuer.
+  # Only used when createSelfSignedIssuer is false.
+  issuerRef:
+    # Name of the existing issuer
+    name: ""
+    # Kind of the existing issuer: Issuer or ClusterIssuer
+    kind: Issuer
+  # Private key algorithm for the certificate: RSA, ECDSA, Ed25519
+  algorithm: RSA
+  # Key size in bits.
+  # RSA: 2048, 4096, or 8192
+  # ECDSA: 256, 384, or 521
+  # Ed25519: N/A
+  size: 2048
+  # Certificate lifetime (e.g., 8760h = 1 year)
+  duration: 8760h
+  # Time before expiration to renew certificate
+  renewBefore: 720h
+
+webhooks:
+  mutating:
+    enabled: true
+    path: /mutate
+    # Service port used by the webhook; defaults to service.port
+    port: ""
+    failurePolicy: Ignore
+    matchPolicy: Equivalent
+    sideEffects: None
+    timeoutSeconds: 5
+    admissionReviewVersions:
+      - v1
+    # Base64-encoded CA bundle. Leave empty if injected by cert-manager cainjector.
+    caBundle: ""
+    # Rules the webhook applies to.
+    rules:
+      - operations:
+          - CREATE
+          - UPDATE
+        apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        resources:
+          - pods
+    # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
+    objectSelector:
+      matchExpressions:
+        - key: pod-image-policy.io/ignore-mutation
+          operator: DoesNotExist
+
+    # Optional namespaceSelector to include/exclude namespaces
+    namespaceSelector: {}
+
+  validating:
+    enabled: true
+    path: /validate
+    # Service port used by the webhook; defaults to service.port
+    port: ""
+    failurePolicy: Ignore
+    matchPolicy: Equivalent
+    sideEffects: None
+    timeoutSeconds: 5
+    admissionReviewVersions:
+      - v1
+    # Base64-encoded CA bundle. Leave empty if injected by cert-manager cainjector.
+    caBundle: ""
+    # Rules the webhook applies to.
+    rules:
+      - operations:
+          - CREATE
+          - UPDATE
+        apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        resources:
+          - pods
+    # Default objectSelector excludes pods carrying the ignore label (set above in podLabels)
+    objectSelector:
+      matchExpressions:
+        - key: pod-image-policy.io/ignore-validation
+          operator: DoesNotExist
+
+    # Optional namespaceSelector to include/exclude namespaces
+    namespaceSelector: {}
+
 # Admission policy for the webhooks.
-policy: {}
+policy:
+  mutate:
+    rules: []
+  validate:
+    rules: []
+
 #   mutate:
 #     rules:
 #       - match: { registry: "docker.io", repository: "(.*)" }

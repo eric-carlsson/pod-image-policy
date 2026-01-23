@@ -1,0 +1,30 @@
+{{- if .Values.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "pod-image-policy.fullname" . }}-webhook-tls
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pod-image-policy.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "pod-image-policy.fullname" . }}-webhook-tls
+  duration: {{ .Values.certManager.duration }}
+  renewBefore: {{ .Values.certManager.renewBefore }}
+  issuerRef:
+    {{- if .Values.certManager.createSelfSignedIssuer }}
+    name: {{ include "pod-image-policy.fullname" . }}-selfsigned
+    kind: Issuer
+    {{- else }}
+    name: {{ .Values.certManager.issuerRef.name }}
+    kind: {{ .Values.certManager.issuerRef.kind }}
+    {{- end }}
+    group: cert-manager.io
+  privateKey:
+    algorithm: {{ .Values.certManager.algorithm }}
+    {{- if ne .Values.certManager.algorithm "Ed25519" }}
+    size: {{ .Values.certManager.size }}
+    {{- end }}
+  dnsNames:
+    - {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+{{- end }}
