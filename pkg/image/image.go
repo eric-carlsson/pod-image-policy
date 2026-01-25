@@ -1,3 +1,4 @@
+// Package image implements helpers for converting image references to and from strings.
 package image
 
 import (
