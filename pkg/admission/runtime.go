@@ -1,3 +1,5 @@
+// Package admission provides validation and mutation logic for Kubernetes admission webhooks
+// that enforce image policies on pods.
 package admission
 
 import (
@@ -66,7 +68,7 @@ func (r *Runtime) Watch(ctx context.Context, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("create watcher: %w", err)
 	}
-	defer watcher.Close()
+	defer watcher.Close() //nolint:errcheck // Never returns an error
 
 	dir := filepath.Dir(r.path)
 	// Watch ..data to catch changes in volumes mounted from ConfigMap, etc.
