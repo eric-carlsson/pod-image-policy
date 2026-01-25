@@ -1,3 +1,4 @@
+// Package main is the entrypoint for the webhook server.
 package main
 
 import (
@@ -22,8 +23,7 @@ type config struct {
 }
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
+	ctx := context.Background()
 	if err := run(ctx, os.Args, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -31,6 +31,8 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, logWriter io.Writer) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
 	if len(args) < 1 {
 		return errors.New("no arguments provided")
 	}
@@ -42,7 +44,7 @@ func run(ctx context.Context, args []string, logWriter io.Writer) error {
 	fs.StringVar(&cfg.certFile, "certFile", "", "Path to TLS certificate file")
 	fs.StringVar(&cfg.keyFile, "keyFile", "", "Path to TLS key file")
 	fs.StringVar(&cfg.policyFile, "policyFile", "", "Path to policy config file")
-	fs.Parse(args[1:])
+	fs.Parse(args[1:]) //nolint:errcheck,gosec // Potential errors are handled by flag.ExitOnError
 
 	if cfg.certFile == "" || cfg.keyFile == "" {
 		return errors.New("certFile and keyFile options must be specified")
