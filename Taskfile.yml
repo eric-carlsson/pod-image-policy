@@ -97,3 +97,15 @@ tasks:
     desc: Deploy into local kind cluster
     deps:
       - deploy-chart
+
+  format:
+    desc: Format source code
+    cmd: golangci-lint fmt {{ .CLI_ARGS }}
+
+  lint:
+    desc: Lint source code
+    cmd: golangci-lint run {{ .CLI_ARGS }}
+
+  test:
+    desc: Run unit tests
+    cmd: go test ./...
