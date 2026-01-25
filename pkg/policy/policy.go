@@ -1,9 +1,12 @@
+// Package policy provides types and functions for parsing and evaluating
+// pod image mutation and validation policies from YAML configuration files.
 package policy
 
 import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -11,6 +14,7 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+// Policy defines mutation and validation rules for container images.
 type Policy struct {
 	Mutate   MutatePolicy   `yaml:"mutate"`
 	Validate ValidatePolicy `yaml:"validate"`
@@ -33,38 +37,44 @@ func Parse(r io.Reader) (*Policy, error) {
 
 // Load reads and parses a policy file.
 func Load(path string) (*Policy, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck // file is always initialized and only closed once
 	return Parse(f)
 }
 
+// MutatePolicy contains rules for rewriting image references.
 type MutatePolicy struct {
 	Rules []MutateRule `yaml:"rules"`
 }
 
+// MutateRule defines a single image mutation rule.
 type MutateRule struct {
 	Match   Match   `yaml:"match"`
 	Replace Replace `yaml:"replace"`
 	Message string  `yaml:"message"`
 }
 
+// ValidatePolicy contains rules for validating image references.
 type ValidatePolicy struct {
 	Rules []ValidateRule `yaml:"rules"`
 }
 
+// ValidateRule defines a single image validation rule.
 type ValidateRule struct {
 	Match   Match  `yaml:"match"`
 	Action  Action `yaml:"action"`
 	Message string `yaml:"message"`
 }
 
+// MatchExp wraps regexp.Regexp with custom YAML unmarshaling that auto-anchors patterns.
 type MatchExp struct {
 	regexp.Regexp
 }
 
+// UnmarshalYAML implements yaml.Unmarshaller interface for MatchExp
 func (me *MatchExp) UnmarshalYAML(node *yaml.Node) error {
 	pattern := node.Value
 
@@ -84,14 +94,19 @@ func (me *MatchExp) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
+// Action represents a validation decision for an image.
 type Action int
 
 const (
+	// Allow permits the image without warnings.
 	Allow Action = iota
+	// Warn permits the image with a warning message.
 	Warn
+	// Deny rejects the image.
 	Deny
 )
 
+// UnmarshalYAML implements yaml.Unmarshaller interface for Action
 func (a *Action) UnmarshalYAML(node *yaml.Node) error {
 	var val Action
 	switch strings.ToLower(strings.TrimSpace(node.Value)) {
@@ -108,6 +123,7 @@ func (a *Action) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
+// Replace defines replacement values for image fields. Supports ${N} for capture groups.
 type Replace struct {
 	Registry   *string `yaml:"registry"`
 	Repository *string `yaml:"repository"`
@@ -115,6 +131,7 @@ type Replace struct {
 	Digest     *string `yaml:"digest"`
 }
 
+// Match defines regex patterns to match against image fields.
 type Match struct {
 	Registry   *MatchExp `yaml:"registry"`
 	Repository *MatchExp `yaml:"repository"`
