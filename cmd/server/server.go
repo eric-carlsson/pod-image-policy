@@ -24,9 +24,12 @@ func startServer(ctx context.Context, log *slog.Logger, addr, certFile, keyFile 
 	mux.Handle("/validate", newAdmissionHandler(log, runtime, handleValidation))
 
 	srv := http.Server{
-		Addr:     addr,
-		Handler:  mux,
-		ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelError),
+		Addr:         addr,
+		Handler:      mux,
+		ErrorLog:     slog.NewLogLogger(log.Handler(), slog.LevelError),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	}
 
 	shutdownErr := make(chan error)
@@ -54,9 +57,11 @@ func startServer(ctx context.Context, log *slog.Logger, addr, certFile, keyFile 
 	return nil
 }
 
-func okHandler(w http.ResponseWriter, r *http.Request) {
+func okHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func encode[T any](w http.ResponseWriter, status int, v T) error {
