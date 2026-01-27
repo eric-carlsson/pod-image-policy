@@ -122,9 +122,7 @@ If you prefer to manage certificates manually without cert-manager:
 
 By default, the webhook allows all images without mutations or restrictions. To enforce custom image policies, configure the `policy` value with your desired validation and mutation rules.
 
-**Using a values file (recommended):**
-
-Create `custom-values.yaml`:
+`custom-values.yaml`:
 
 ```yaml
 policy:
@@ -145,7 +143,7 @@ policy:
         message: "'latest' tags are not allowed"
 ```
 
-Deploy with custom policy:
+Deploy:
 
 ```sh
 helm upgrade pod-image-policy oci://ghcr.io/eric-carlsson/charts/pod-image-policy \
