@@ -11,9 +11,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 
+ARG TARGETOS
+ARG TARGETARCH
+
 RUN --mount=type=cache,target=/go/pkg/mod \
 	--mount=type=cache,target=/root/.cache/go-build \
-	CGO_ENABLED=0 go build -o /pod-image-policy ./cmd/server
+	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /pod-image-policy ./cmd/server
 
 FROM scratch
 
