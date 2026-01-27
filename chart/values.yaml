@@ -39,9 +39,10 @@ serviceAccount:
 podAnnotations: {}
 # This is for setting Kubernetes Labels to a Pod.
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-# Default label opts the webhook pod (and any pod with this label) out of mutation via the webhook's objectSelector.
+# Default label opts the webhook pod out of mutation via the webhook's objectSelector.
 podLabels:
   pod-image-policy.io/ignore-mutation: "true"
+  pod-image-policy.io/ignore-validation: "true"
 
 podSecurityContext: {}
   # fsGroup: 2000
@@ -139,6 +140,7 @@ certManager:
   # Time before expiration to renew certificate
   renewBefore: 720h
 
+# Configuration for mutating/validatingwebhookconfigurations
 webhooks:
   mutating:
     enabled: true
