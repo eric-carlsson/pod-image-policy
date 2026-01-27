@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/golang:1.25 AS build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25 AS build
 
 WORKDIR /workdir
 
