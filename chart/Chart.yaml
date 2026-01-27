@@ -9,4 +9,4 @@ version: 0.1.0
 appVersion: "1.16.0"
 home: https://github.com/eric-carlsson/pod-image-policy
 sources:
-  - https://github.com/eric-carlsson/charts/pod-image-policy
+  - https://github.com/eric-carlsson/pod-image-policy
