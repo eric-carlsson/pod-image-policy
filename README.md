@@ -59,7 +59,7 @@ A Kubernetes admission controller that validates and mutates container image ref
 
 ## Deploy
 
-A Helm chart is available in [helm/pod-image-policy](helm/pod-image-policy).
+The Helm chart is available as an OCI artifact at `oci://ghcr.io/eric-carlsson/charts/pod-image-policy`.
 
 A TLS certificate is required to enable communication between the API server and the webhook. By default, the chart is configured with a [cert-manager](https://cert-manager.io/docs/) integration that automatically creates a self-signed issuer and TLS certificate. This can be disabled if you want to bring your own TLS certificate.
 
@@ -68,7 +68,7 @@ A TLS certificate is required to enable communication between the API server and
 Deploy the Helm chart with default values. This enables the cert-manager integration and creates a self-signed issuer:
 
 ```sh
-helm upgrade pod-image-policy ./helm/pod-image-policy \
+helm upgrade pod-image-policy oci://ghcr.io/eric-carlsson/charts/pod-image-policy \
   --install \
   --namespace pod-image-policy \
   --create-namespace
@@ -77,7 +77,7 @@ helm upgrade pod-image-policy ./helm/pod-image-policy \
 To use an existing cert-manager issuer instead of the self-signed one:
 
 ```sh
-helm upgrade pod-image-policy ./helm/pod-image-policy \
+helm upgrade pod-image-policy oci://ghcr.io/eric-carlsson/charts/pod-image-policy \
   --install \
   --namespace pod-image-policy \
   --create-namespace \
@@ -107,7 +107,7 @@ If you prefer to manage certificates manually without cert-manager:
 2. Deploy the Helm chart:
 
    ```sh
-   helm upgrade pod-image-policy ./helm/pod-image-policy \
+   helm upgrade pod-image-policy oci://ghcr.io/eric-carlsson/charts/pod-image-policy \
      --install \
      --namespace pod-image-policy \
      --set certManager.enabled=false \
@@ -148,7 +148,7 @@ policy:
 Deploy with custom policy:
 
 ```sh
-helm upgrade pod-image-policy ./helm/pod-image-policy \
+helm upgrade pod-image-policy oci://ghcr.io/eric-carlsson/charts/pod-image-policy \
   --install \
   --namespace pod-image-policy \
   --create-namespace \
