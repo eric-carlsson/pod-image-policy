@@ -1,0 +1,12 @@
+apiVersion: v2
+name: pod-image-policy
+description: >-
+  Chart to deploy pod-image-policy, a Kubernetes admission
+  controller that validates and mutates container image
+  references in pods.
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+home: https://github.com/eric-carlsson/pod-image-policy
+sources:
+  - https://github.com/eric-carlsson/pod-image-policy
