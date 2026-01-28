@@ -44,6 +44,10 @@ podLabels:
   pod-image-policy.io/ignore-mutation: "true"
   pod-image-policy.io/ignore-validation: "true"
 
+# This is for setting a priorityClassName on the Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+priorityClassName: ""
+
 podSecurityContext: {}
   # fsGroup: 2000
 
