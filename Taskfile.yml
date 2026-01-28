@@ -102,6 +102,10 @@ tasks:
     desc: Format source code
     cmd: golangci-lint fmt {{ .CLI_ARGS }}
 
+  check-format:
+    desc: Check source code formatting
+    cmd: golangci-lint fmt --diff {{ .CLI_ARGS }}
+
   lint:
     desc: Lint source code
     cmd: golangci-lint run {{ .CLI_ARGS }}
