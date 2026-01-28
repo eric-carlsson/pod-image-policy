@@ -16,12 +16,12 @@ ARG TARGETARCH
 
 RUN --mount=type=cache,target=/go/pkg/mod \
 	--mount=type=cache,target=/root/.cache/go-build \
-	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /pod-image-policy ./cmd/server
+	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /webhook ./cmd/webhook
 
 FROM scratch
 
-COPY --from=build /pod-image-policy /pod-image-policy
+COPY --from=build /webhook /webhook
 
 EXPOSE 9443
 
-ENTRYPOINT ["/pod-image-policy"]
+ENTRYPOINT ["/webhook"]

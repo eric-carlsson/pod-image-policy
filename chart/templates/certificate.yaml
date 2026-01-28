@@ -25,6 +25,6 @@ spec:
     size: {{ .Values.certManager.size }}
     {{- end }}
   dnsNames:
-    - {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
-    - {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "pod-image-policy.fullname" . }}-webhook.{{ .Release.Namespace }}.svc
+    - {{ include "pod-image-policy.fullname" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
 {{- end }}
