@@ -98,6 +98,15 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
+# This section is for setting up a PodDisruptionBudget more information can be found here: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+podDisruptionBudget:
+  enabled: false
+  # Minimum number of pods that must be available during disruptions
+  minAvailable: 1
+  # Maximum number of pods that can be unavailable during disruptions
+  # Only one of minAvailable or maxUnavailable can be set
+  maxUnavailable: ""
+
 # Additional volumes on the output Deployment definition.
 volumes: []
 # - name: foo
