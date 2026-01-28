@@ -2,7 +2,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: {{ include "pod-image-policy.fullname" . }}-validating
+  name: {{ include "pod-image-policy.fullname" . }}-validating-webhook
   labels:
     {{- include "pod-image-policy.labels" . | nindent 4 }}
   {{- if .Values.certManager.enabled }}
@@ -10,7 +10,7 @@ metadata:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "pod-image-policy.fullname" . }}-webhook-tls
   {{- end }}
 webhooks:
-  - name: {{ include "pod-image-policy.fullname" . }}.{{ .Release.Namespace }}.svc
+  - name: {{ include "pod-image-policy.fullname" . }}-webhook.{{ .Release.Namespace }}.svc
     admissionReviewVersions: {{ toYaml .Values.webhooks.validating.admissionReviewVersions | nindent 4 }}
     sideEffects: {{ .Values.webhooks.validating.sideEffects }}
     timeoutSeconds: {{ .Values.webhooks.validating.timeoutSeconds }}
@@ -28,7 +28,7 @@ webhooks:
       {{- toYaml .Values.webhooks.validating.rules | nindent 6 }}
     clientConfig:
       service:
-        name: {{ include "pod-image-policy.fullname" . }}
+        name: {{ include "pod-image-policy.fullname" . }}-webhook
         namespace: {{ .Release.Namespace }}
         path: {{ .Values.webhooks.validating.path }}
         {{- if .Values.webhooks.validating.port }}

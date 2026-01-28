@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "pod-image-policy.fullname" . }}
+  name: {{ include "pod-image-policy.fullname" . }}-webhook
   labels:
     {{- include "pod-image-policy.labels" . | nindent 4 }}
 spec:
