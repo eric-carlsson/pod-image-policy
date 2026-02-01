@@ -81,12 +81,12 @@ tasks:
       - ensure-cert-manager
       - load-image
     cmd: >-
-      helm upgrade pod-image-policy ./helm/pod-image-policy
+      helm upgrade pod-image-policy ./chart
       --install
       --namespace pod-image-policy
       --create-namespace
-      --set image.repository=localhost/{{ .IMAGE_NAME }}
-      --set image.tag={{ .IMAGE_HASH }}
+      --set image.repository={{ .IMAGE_REGISTRY }}/{{ .IMAGE_REPOSITORY }}
+      --set image.tag={{ .IMAGE_TAG }}
 
   build:
     desc: Build the application image
