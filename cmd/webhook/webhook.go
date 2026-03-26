@@ -34,14 +34,14 @@ func startServer(ctx context.Context, log *slog.Logger, addr, certFile, keyFile 
 
 	shutdownErr := make(chan error)
 
-	go func() {
+	go func() { //nolint:gosec // graceful shutdown needs different context
 		<-ctx.Done()
 		log.Info("shutting down server", "err", ctx.Err())
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		shutdownErr <- srv.Shutdown(ctx)
+		shutdownErr <- srv.Shutdown(shutdownCtx)
 	}()
 
 	log.Info("starting server", "addr", addr)

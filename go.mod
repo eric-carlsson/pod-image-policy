@@ -1,6 +1,6 @@
 module github.com/eric-carlsson/pod-image-policy
 
-go 1.25.4
+go 1.26.1
 
 require (
 	github.com/distribution/reference v0.6.0

@@ -13,8 +13,6 @@ func mexp(exp string) *MatchExp {
 	return &MatchExp{Regexp: *regexp.MustCompile(exp)}
 }
 
-func ptr(s string) *string { return &s }
-
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -266,9 +264,9 @@ func TestMatch_MatchAndReplace(t *testing.T) {
 				Tag:        mexp("^v(\\d+)\\.(\\d+)$"),
 			},
 			replace: Replace{
-				Registry:   ptr("new.example.com"),
-				Repository: ptr("project/${1}"),
-				Tag:        ptr("release-${1}.${2}"),
+				Registry:   new("new.example.com"),
+				Repository: new("project/${1}"),
+				Tag:        new("release-${1}.${2}"),
 			},
 			img: image.Image{
 				Registry:   "old.example.com",
@@ -287,7 +285,7 @@ func TestMatch_MatchAndReplace(t *testing.T) {
 				Registry: mexp("^other\\.example\\.com$"),
 			},
 			replace: Replace{
-				Registry: ptr("ignored.example.com"),
+				Registry: new("ignored.example.com"),
 			},
 			img: image.Image{
 				Registry: "old.example.com",
@@ -302,7 +300,7 @@ func TestMatch_MatchAndReplace(t *testing.T) {
 				Registry: mexp("^any$"),
 			},
 			replace: Replace{
-				Tag: ptr("latest"),
+				Tag: new("latest"),
 			},
 			img: image.Image{
 				Registry: "any",
@@ -319,7 +317,7 @@ func TestMatch_MatchAndReplace(t *testing.T) {
 				Tag: mexp("^v(\\d+)$"),
 			},
 			replace: Replace{
-				Tag: ptr("v${2}"),
+				Tag: new("v${2}"),
 			},
 			img: image.Image{
 				Tag: "v1",
@@ -333,7 +331,7 @@ func TestMatch_MatchAndReplace(t *testing.T) {
 				Tag:      mexp("^t1$"),
 			},
 			replace: Replace{
-				Registry: ptr("r2"),
+				Registry: new("r2"),
 			},
 			img: image.Image{
 				Registry:   "r1",
