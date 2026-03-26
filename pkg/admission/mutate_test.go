@@ -7,8 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func ptr(s string) *string { return &s }
-
 func TestMutator_MutatePodImages(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -27,7 +25,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^old\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("new.io"),
+							Registry: new("new.io"),
 						},
 						Message: "migrated to new registry",
 					},
@@ -60,7 +58,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Repository: mexp("^team/(.*)$"),
 						},
 						Replace: policy.Replace{
-							Repository: ptr("project/${1}"),
+							Repository: new("project/${1}"),
 						},
 						Message: "repository restructure",
 					},
@@ -93,7 +91,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Tag: mexp("^v(\\d+)\\.(\\d+)$"),
 						},
 						Replace: policy.Replace{
-							Tag: ptr("release-${1}.${2}"),
+							Tag: new("release-${1}.${2}"),
 						},
 						Message: "tag format updated",
 					},
@@ -127,8 +125,8 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Repository: mexp("^(.*)$"),
 						},
 						Replace: policy.Replace{
-							Registry:   ptr("new.io"),
-							Repository: ptr("migrated/${1}"),
+							Registry:   new("new.io"),
+							Repository: new("migrated/${1}"),
 						},
 						Message: "full migration",
 					},
@@ -161,7 +159,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^other\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("new.io"),
+							Registry: new("new.io"),
 						},
 					},
 				},
@@ -185,7 +183,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^old\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("new.io"),
+							Registry: new("new.io"),
 						},
 						Message: "migrated",
 					},
@@ -226,7 +224,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Tag: mexp("^latest$"),
 						},
 						Replace: policy.Replace{
-							Tag: ptr("stable"),
+							Tag: new("stable"),
 						},
 						Message: "pinned tag",
 					},
@@ -259,7 +257,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^public\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("internal.io"),
+							Registry: new("internal.io"),
 						},
 						Message: "use internal registry",
 					},
@@ -292,7 +290,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^old\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("new.io"),
+							Registry: new("new.io"),
 						},
 						Message: "rule 1",
 					},
@@ -301,7 +299,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^old\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("other.io"),
+							Registry: new("other.io"),
 						},
 						Message: "rule 2",
 					},
@@ -334,7 +332,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp("^old\\.io$"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("new.io"),
+							Registry: new("new.io"),
 						},
 					},
 				},
@@ -364,7 +362,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Tag: mexp("^v(\\d+)$"),
 						},
 						Replace: policy.Replace{
-							Tag: ptr("v${2}"),
+							Tag: new("v${2}"),
 						},
 					},
 				},
@@ -387,7 +385,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 							Registry: mexp(".*"),
 						},
 						Replace: policy.Replace{
-							Registry: ptr("new.io"),
+							Registry: new("new.io"),
 						},
 					},
 				},
