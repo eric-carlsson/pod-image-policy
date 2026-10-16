@@ -207,7 +207,7 @@ func TestValidator_ValidatePodImages(t *testing.T) {
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
 					EphemeralContainers: []corev1.EphemeralContainer{
-						{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Image: "debug/shell:latest"}},
+						{Image: "debug/shell:latest"},
 					},
 				},
 			},

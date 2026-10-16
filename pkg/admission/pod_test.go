@@ -17,20 +17,16 @@ func TestCollectImageSlots(t *testing.T) {
 				{Image: "busybox:1.2"},
 			},
 			EphemeralContainers: []corev1.EphemeralContainer{
-				{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Image: "debug:v1"}},
+				{Image: "debug:v1"},
 			},
 			Volumes: []corev1.Volume{
 				{
-					VolumeSource: corev1.VolumeSource{
-						Image: &corev1.ImageVolumeSource{
-							Reference: "ghcr.io/foo/bar:v1.0.0",
-						},
+					Image: &corev1.ImageVolumeSource{
+						Reference: "ghcr.io/foo/bar:v1.0.0",
 					},
 				},
 				{
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{},
-					},
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		},

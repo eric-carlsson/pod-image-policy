@@ -128,11 +128,9 @@ func (h admissionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := admissionv1.AdmissionReview{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: admissionv1.SchemeGroupVersion.String(),
-			Kind:       "AdmissionReview",
-		},
-		Response: resp,
+		APIVersion: admissionv1.SchemeGroupVersion.String(),
+		Kind:       "AdmissionReview",
+		Response:   resp,
 	}
 
 	if err := encode(w, http.StatusOK, response); err != nil {

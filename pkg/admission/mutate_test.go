@@ -266,7 +266,7 @@ func TestMutator_MutatePodImages(t *testing.T) {
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
 					EphemeralContainers: []corev1.EphemeralContainer{
-						{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Image: "public.io/debug:latest"}},
+						{Image: "public.io/debug:latest"},
 					},
 				},
 			},
