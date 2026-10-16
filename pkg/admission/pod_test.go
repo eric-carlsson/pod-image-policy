@@ -19,6 +19,20 @@ func TestCollectImageSlots(t *testing.T) {
 			EphemeralContainers: []corev1.EphemeralContainer{
 				{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Image: "debug:v1"}},
 			},
+			Volumes: []corev1.Volume{
+				{
+					VolumeSource: corev1.VolumeSource{
+						Image: &corev1.ImageVolumeSource{
+							Reference: "ghcr.io/foo/bar:v1.0.0",
+						},
+					},
+				},
+				{
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			},
 		},
 	}
 
@@ -29,6 +43,7 @@ func TestCollectImageSlots(t *testing.T) {
 		{Image: "redis:latest", Path: "/spec/containers/1/image"},
 		{Image: "busybox:1.2", Path: "/spec/initContainers/0/image"},
 		{Image: "debug:v1", Path: "/spec/ephemeralContainers/0/image"},
+		{Image: "ghcr.io/foo/bar:v1.0.0", Path: "/spec/volumes/0/image/reference"},
 	}
 
 	if len(slots) != len(expected) {
