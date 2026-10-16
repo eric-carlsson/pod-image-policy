@@ -34,6 +34,14 @@ func CollectImageSlots(pod *corev1.Pod) []ImageSlot {
 			Path:  fmt.Sprintf("/spec/ephemeralContainers/%d/image", i),
 		})
 	}
+	for i, c := range pod.Spec.Volumes {
+		if c.Image != nil {
+			slots = append(slots, ImageSlot{
+				Image: c.Image.Reference,
+				Path:  fmt.Sprintf("/spec/volumes/%d/image/reference", i),
+			})
+		}
+	}
 
 	return slots
 }
