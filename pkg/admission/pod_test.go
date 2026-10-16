@@ -27,6 +27,11 @@ func TestCollectImageSlots(t *testing.T) {
 						},
 					},
 				},
+				{
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
 			},
 		},
 	}
