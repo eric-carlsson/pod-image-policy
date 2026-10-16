@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -67,7 +67,7 @@ func okHandler(w http.ResponseWriter, _ *http.Request) {
 func encode[T any](w http.ResponseWriter, status int, v T) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
+	if err := json.MarshalWrite(w, v); err != nil {
 		return fmt.Errorf("encode json: %w", err)
 	}
 	return nil
@@ -78,7 +78,7 @@ func decode[T any](r *http.Request) (T, error) {
 	if ct := r.Header.Get("Content-Type"); ct != "application/json" {
 		return v, fmt.Errorf("unexpected content-type: %s", ct)
 	}
-	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+	if err := json.UnmarshalRead(r.Body, &v); err != nil {
 		return v, fmt.Errorf("decode json: %w", err)
 	}
 	return v, nil
@@ -104,7 +104,8 @@ func (h admissionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.log.Info("admission request received",
+	h.log.Info(
+		"admission request received",
 		"uid", review.Request.UID,
 		"kind", review.Request.Kind,
 		"resource", review.Request.Resource,
@@ -127,11 +128,9 @@ func (h admissionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := admissionv1.AdmissionReview{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: admissionv1.SchemeGroupVersion.String(),
-			Kind:       "AdmissionReview",
-		},
-		Response: resp,
+		APIVersion: admissionv1.SchemeGroupVersion.String(),
+		Kind:       "AdmissionReview",
+		Response:   resp,
 	}
 
 	if err := encode(w, http.StatusOK, response); err != nil {
